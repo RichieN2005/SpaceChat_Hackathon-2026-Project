@@ -1,0 +1,14 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# React / Vite
+node_modules/
+dist/
+
+# Python / Flask
+.venv/
+venv/
+__pycache__/
+*.pyc
