@@ -108,14 +108,13 @@ export default function LandingPage({ returnFromSurface = null }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { status } = useAuth();
-  const showAuth = status === "anonymous" || status === "error";
+  const showAuth = status !== "authenticated";
   const [returnMode] = useState(returnFromSurface);
   const [isReturning, setIsReturning] = useState(Boolean(returnMode));
   const returnStartedRef = useRef(false);
   const moonImageRef = useRef(null);
   const departingRef = useRef(false);
   const [communities, setCommunities] = useState(previewCommunities);
-  const [initiallyComposing, setInitiallyComposing] = useState(false);
   const [postSort, setPostSort] = useState("newest");
   useEffect(() => {
     const controller = new AbortController();
@@ -146,11 +145,13 @@ export default function LandingPage({ returnFromSurface = null }) {
     return () => window.removeEventListener("keydown", handleKey);
   }, [menuOpen]);
 
-  // Replace this handler with navigation when the real forum is ready.
   function openUniverse(item = community, compose = false) {
-    setInitiallyComposing(compose);
     setMenuOpen(false);
-    navigate("/");
+    if (compose) {
+      navigate(item.apiId ? `/submit?community=${item.apiId}` : "/submit");
+    } else {
+      navigate(item.apiId ? `/communities/${item.apiId}` : "/");
+    }
   }
 
   function handleAuthAction(action) {
@@ -500,9 +501,7 @@ export default function LandingPage({ returnFromSurface = null }) {
 
       {departure && <PlanetTransition departure={departure} onComplete={finishAuthTransition} />}
 
-      {selectedCommunity && (
-        <ForumDialog key={selectedCommunity.id} initiallyComposing={initiallyComposing} initialSort={postSort} community={selectedCommunity} onClose={() => setSelectedCommunity(null)} />
-      )}
+
     </>
   );
 }
