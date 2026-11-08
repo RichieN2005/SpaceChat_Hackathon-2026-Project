@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { useAuth } from "../components/auth/AuthProvider";
 import AuthButtons from "../components/landing/AuthButtons";
 import PlanetTransition from "../components/landing/PlanetTransition";
 import { captureMoonGeometry } from "../components/landing/orbitGeometry";
@@ -105,6 +106,8 @@ function SectionLabel({ number, children, className = "" }) {
 export default function LandingPage({ returnFromSurface = null }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { status } = useAuth();
+  const showAuth = status === "anonymous" || status === "error";
   const [returnMode] = useState(returnFromSurface);
   const [isReturning, setIsReturning] = useState(Boolean(returnMode));
   const returnStartedRef = useRef(false);
@@ -138,7 +141,7 @@ export default function LandingPage({ returnFromSurface = null }) {
   }
 
   function handleAuthAction(action) {
-    if (departingRef.current || isReturning) return;
+    if (!showAuth || departingRef.current || isReturning) return;
     const route = action === "login" ? "/login" : "/signup";
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       navigate(route, { state: { fromOrbit: true } });
@@ -220,10 +223,10 @@ export default function LandingPage({ returnFromSurface = null }) {
                   {label}
                 </a>
               ))}
-              <AuthButtons
+              {showAuth && <AuthButtons
                 onAction={handleAuthAction}
                 className="mt-3 flex border-t border-[#30272b] pt-4 min-[701px]:hidden"
-              />
+              />}
             </nav>
             <div className="ml-auto flex shrink-0 items-center gap-[13px] min-[701px]:ml-0 min-[961px]:gap-5 max-[371px]:gap-[9px]">
               <button
@@ -234,7 +237,7 @@ export default function LandingPage({ returnFromSurface = null }) {
                 Enter the universe
                 <Icon name="diagonal" size={16} className="text-signal max-[701px]:w-[13px]" />
               </button>
-              <AuthButtons onAction={handleAuthAction} className="hidden min-[701px]:flex" />
+              {showAuth && <AuthButtons onAction={handleAuthAction} className="hidden min-[701px]:flex" />}
               <button
                 type="button"
                 className="bg-transparent py-[9px] pl-[5px] min-[701px]:hidden"
@@ -287,6 +290,7 @@ export default function LandingPage({ returnFromSurface = null }) {
               </div>
             </div>
             <MoonScene
+              showAuth={showAuth}
               onAuthNavigate={handleAuthAction}
               imageRef={moonImageRef}
               isDeparting={Boolean(departure)}

@@ -137,7 +137,7 @@ function MoonAuthButton({ mode, label, subtitle, onAuthNavigate, isDeparting, cl
   );
 }
 
-export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipEntrance = false }) {
+export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipEntrance = false, showAuth = true }) {
   return (
     <div
       className="pointer-events-none absolute -right-[45px] top-[21px] z-0 h-[670px] w-[720px] mix-blend-screen min-[1550px]:-right-[25px] min-[1550px]:top-[10px] min-[1550px]:h-[740px] min-[1550px]:w-[810px] max-[1200px]:-right-[95px] max-[1200px]:top-6 max-[1200px]:h-[610px] max-[1200px]:w-[650px] max-[961px]:-right-[147px] max-[961px]:top-[31px] max-[961px]:h-[575px] max-[961px]:w-[600px] max-[701px]:relative max-[701px]:left-1/2 max-[701px]:right-auto max-[701px]:top-0 max-[701px]:z-1 max-[701px]:-mt-[5px] max-[701px]:aspect-[1.13] max-[701px]:h-auto max-[701px]:w-[calc(100%+80px)] max-[701px]:max-w-[580px] max-[701px]:-translate-x-1/2"
@@ -159,6 +159,7 @@ export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipE
         <span className="text-[12px] text-[#c3b6ad] max-[961px]:text-[10px] max-[701px]:text-[9px]">SC—001</span>
         <span>TRANSMITTING FROM EVERYWHERE</span>
       </div>
+      {showAuth && <>
       <MoonAuthButton
         mode="login"
         label="Log in"
@@ -175,6 +176,7 @@ export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipE
         isDeparting={isDeparting}
         className="left-[49%] top-[61%] max-[701px]:left-[42%]"
       />
+      </>}
       <span aria-hidden="true" className="absolute bottom-[17px] left-[30%] z-2 font-mono text-[9px] leading-[normal] tracking-[1px] text-[#a39893] max-[1200px]:left-[38%] max-[1200px]:text-[8px] max-[961px]:bottom-[30px] max-[961px]:left-[34%] max-[961px]:text-[7px] max-[701px]:bottom-0 max-[701px]:left-[28%] max-[701px]:tracking-[.7px]">
         25° 19′ N &nbsp; 0° 00′ E &nbsp; / &nbsp; ALL ARE WELCOME
       </span>
