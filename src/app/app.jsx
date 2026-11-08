@@ -1,19 +1,14 @@
-
-import { Routes, Route } from "react-router";
-
-function Home() {
-  return <h1 className="text-3xl font-bold">Home</h1>;
-}
-
-function About() {
-  return <h1 className="text-3xl font-bold">About</h1>;
-}
+import { Navigate, Route, Routes } from "react-router";
+import LandingPage from "../pages/LandingPage";
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/about" element={<About />} />
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/landing" element={<LandingPage />} />
+      {/* Preserve the existing /about URL while the forum is in development. */}
+      <Route path="/about" element={<LandingPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
