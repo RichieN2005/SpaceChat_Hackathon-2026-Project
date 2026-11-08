@@ -1,5 +1,22 @@
 # SpaceChat — Hackathon 2026
 
+## Landing page
+
+The React frontend now includes a responsive SpaceChat landing page at `/` (also available at `/landing`) with an original red moon hero, three browsable community previews, a how-it-works section, and the project story. Run `npm run dev` and open `http://localhost:5173/`; `npm run build` creates the production frontend in `dist/`.
+
+The landing page's **interactive preview** supports voting, composing sample posts, and replying. This is session-only demo content: posts and replies reset when the preview closes, and no forum or account API is called. Replace the `openUniverse` handler in `src/pages/LandingPage.jsx` with the real app entry point when the forum is ready. The generated moon asset and its generation prompt are documented in `public/images/README.md`.
+
+Page structure:
+
+- `src/app/app.jsx` contains route definitions only.
+- `src/pages/LandingPage.jsx` contains the landing page and its interactions.
+- `src/components/landing/visuals.jsx` contains the reusable logo, icons, starfield, moon scene, and small planets.
+- `src/components/landing/effects.css` contains only decorative texture backgrounds.
+- `src/app/ForumDialog.jsx` contains the session-only forum preview.
+- `src/index.css` configures Tailwind theme tokens, animations, and base styles. Layout, typography, colors, responsive behavior, and component states use Tailwind utility classes in JSX.
+
+The onboarding notes below describe the earlier scaffold and planned backend architecture; the landing page above supersedes references to the sample Home and About screens.
+
 SpaceChat is a hackathon web application **in early development**. This repository currently contains a React frontend scaffold and the dependencies/configuration for a Python Flask API backed by TigerData (PostgreSQL). The application's product features and database integration have **not** been implemented in this snapshot.
 
 This README is intended to help contributors understand the codebase, configure their machines, and avoid common setup problems. Sections marked **Planned / not yet implemented** describe intended architecture, not working functionality.
