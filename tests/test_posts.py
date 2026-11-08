@@ -34,6 +34,7 @@ class PublicContentRoutesTest(unittest.TestCase):
             "title": "Hello, other worlds", "body": "A transmission from Earth.",
             "created_at": timestamp, "author_username": "cosmic_traveler",
             "subreddit_name": "firstcontact", "comment_count": 2,
+            "score": 0, "user_vote": 0,
         }
         self.comment = {
             "id": 12, "post_id": 9, "author_id": 8, "parent_comment_id": None,
@@ -99,7 +100,7 @@ class PublicContentRoutesTest(unittest.TestCase):
         invalid = [
             {"limit": ""}, {"limit": "no"}, {"limit": "1.5"}, {"limit": 0}, {"limit": -1},
             {"offset": ""}, {"offset": "no"}, {"offset": -1}, {"offset": 100001},
-            {"q": "x" * 201}, {"sort": "top"}, {"sort": "new; DROP TABLE users"},
+            {"q": "x" * 201}, {"sort": "hot"}, {"sort": "new; DROP TABLE users"},
             {"subreddit_id": ""}, {"subreddit_id": 0}, {"subreddit_id": -1},
             {"subreddit_id": "2 OR 1=1"}, {"subreddit_id": 2**63},
         ]
@@ -197,10 +198,13 @@ class AppAvailabilityTest(unittest.TestCase):
             self.assertEqual(client.get("/api/health").status_code, 200)
             constructor.assert_not_called()
 
-            # The existing AI error response remains scoped to the AI request.
+            self.assertEqual(client.post("/api/ai/chat", json={"message": "Hello"}).status_code, 401)
+            with client.session_transaction() as session:
+                session["user_id"] = 7
+            # AI configuration errors remain scoped to the authenticated AI request.
             response = client.post("/api/ai/chat", json={"message": "Hello"})
-            self.assertEqual(response.status_code, 200)
-            self.assertIn("Communications link failure", response.get_json()["response"])
+            self.assertEqual(response.status_code, 503)
+            self.assertNotIn("No API key", response.get_json()["error"])
             constructor.assert_called_once_with()
 
 

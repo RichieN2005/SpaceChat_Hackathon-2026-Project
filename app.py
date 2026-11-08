@@ -11,22 +11,29 @@ from api.posts.routes import posts
 from api.subreddits.routes import subreddits
 from api.users.routes import users
 from api.health import health_bp
+from api.common import login_required
 
 # Load environment variables for local development.
 load_dotenv()
 
 # Initialize Flask.
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 128 * 1024
 
 # Configure Flask's secret key.
 app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
+
+
+@app.errorhandler(413)
+def request_too_large(_error):
+    return jsonify(error="Request body must be at most 128 KiB"), 413
 
 # Initialize AI only when it is used, so its configuration cannot block other routes.
 @lru_cache(maxsize=1)
 def get_ai_client():
     return genai.Client()
 
-def ask_space_bot(user_message: str) -> str:
+def ask_space_bot(user_message: str) -> str | None:
     """
     Sends a prompt to Gemini with system instructions to enforce a space theme.
     """
@@ -47,19 +54,27 @@ def ask_space_bot(user_message: str) -> str:
                 temperature=0.7,
             ),
         )
-        return response.text
-    except Exception as e:
-        return f"Warning: Communications link failure to orbital array. Error: {str(e)}"
+        answer = response.text
+        return answer if isinstance(answer, str) and answer.strip() else None
+    except Exception:
+        return None
 
 @app.route('/api/ai/chat', methods=['POST'])
+@login_required
 def chat_with_spacebot():
-    data = request.get_json() or {}
-    user_message = data.get('message', '')
-    
-    if not user_message:
-        return jsonify({"error": "No telemetry payload (message) provided."}), 400
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify(error="JSON body must be an object"), 400
+    message = data.get("message")
+    if not isinstance(message, str) or not message.strip():
+        return jsonify(error="Message is required"), 400
+    user_message = message.strip()
+    if len(user_message) > 2000:
+        return jsonify(error="Message must be at most 2000 characters"), 400
 
     bot_response = ask_space_bot(user_message)
+    if bot_response is None:
+        return jsonify(error="AstroBot is temporarily unavailable. Please try again later."), 503
     
     return jsonify({
         "sender": "AstroBot",

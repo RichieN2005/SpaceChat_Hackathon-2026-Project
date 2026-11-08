@@ -4,6 +4,7 @@ import ForumLayout, { BluePlanet, LoadError, LoadingCards, secondaryButton } fro
 import PostCard from "../components/forum/PostCard";
 import { Icon, MiniPlanet } from "../components/landing/visuals";
 import { forumApi } from "../lib/forum";
+import { useAuth } from "../components/auth/AuthProvider";
 
 const PAGE_SIZE = 20;
 
@@ -57,9 +58,10 @@ function CommunityList({ communities, activeCommunity, onSelect, error, loading,
 }
 
 export default function HomePage() {
+  const { status } = useAuth();
   const [params, setParams] = useSearchParams();
   const q = (params.get("q") || "").trim().slice(0, 200);
-  const sort = params.get("sort") === "discussed" ? "discussed" : "new";
+  const sort = ["discussed", "top"].includes(params.get("sort")) ? params.get("sort") : "new";
   const community = /^[1-9]\d*$/.test(params.get("community") || "") ? params.get("community") : "";
   const [communities, setCommunities] = useState([]);
   const [communitiesLoading, setCommunitiesLoading] = useState(true);
@@ -89,12 +91,13 @@ export default function HomePage() {
     </section>
     <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_290px]">
       <section aria-labelledby="feed-title" className="min-w-0">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-4"><div><h2 id="feed-title" className="text-2xl font-medium tracking-[-.6px]">{q ? "Search transmissions" : selected ? `s/${selected.name}` : "Your window to the universe"}</h2>{q && <p role="status" className="mt-2 text-sm text-[#a6aabd] [overflow-wrap:anywhere]">Results for “{q}”</p>}</div><div className="flex rounded-lg border border-white/10 bg-[#10121b] p-1" aria-label="Sort posts">{[['new', 'Newest'], ['discussed', 'Most discussed']].map(([value, label]) => <button type="button" key={value} aria-pressed={sort === value} onClick={() => updateFilter("sort", value)} className={`min-h-10 rounded-md px-3 text-xs transition-colors ${sort === value ? "bg-white/9 text-starlight" : "text-[#9b9eaf] hover:text-white"}`}>{label}</button>)}</div></div>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-4"><div><h2 id="feed-title" className="text-2xl font-medium tracking-[-.6px]">{q ? "Search transmissions" : selected ? `s/${selected.name}` : "Your window to the universe"}</h2>{q && <p role="status" className="mt-2 text-sm text-[#a6aabd] [overflow-wrap:anywhere]">Results for “{q}”</p>}</div><div className="flex max-w-full flex-wrap rounded-lg border border-white/10 bg-[#10121b] p-1" aria-label="Sort posts">{[['new', 'Newest'], ['top', 'Top'], ['discussed', 'Most discussed']].map(([value, label]) => <button type="button" key={value} aria-pressed={sort === value} onClick={() => updateFilter("sort", value)} className={`min-h-10 rounded-md px-3 text-xs transition-colors ${sort === value ? "bg-white/9 text-starlight" : "text-[#9b9eaf] hover:text-white"}`}>{label}</button>)}</div></div>
         <div className="mb-5 flex flex-wrap items-center gap-3 lg:hidden"><label htmlFor="community-filter" className="text-xs text-[#a5aabc]">Community</label><select id="community-filter" value={community} onChange={(event) => updateFilter("community", event.target.value)} className="min-h-11 min-w-0 max-w-full flex-1 rounded-lg border border-white/15 bg-[#13151f] px-3 text-sm"><option value="">All transmissions</option>{communities.map((item) => <option key={item.id} value={item.id}>s/{item.name}</option>)}</select></div>
         {communitiesLoading && <p role="status" className="mb-4 text-xs text-[#a5aabc] lg:hidden">Locating communities…</p>}
         {communitiesError && <div className="mb-4 flex flex-wrap items-center gap-3 text-sm lg:hidden"><p role="alert" className="text-[#e7baa9]">Communities are unavailable.</p><button type="button" onClick={() => setRetryCommunities((current) => current + 1)} className="min-h-10 text-[#bfcfe6] underline underline-offset-4">Try communities again</button></div>}
         {(q || community) && <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-[#a3b3ca]">{community && <span className="rounded-md border border-white/12 bg-white/3 px-3 py-2">{selected ? `s/${selected.name}` : `Community #${community}`}</span>}<Link to="/" className="py-2 underline underline-offset-4 hover:text-white">Clear filters</Link></div>}
-        <Feed key={`${q}|${sort}|${community}`} filters={{ q, sort, community }} />
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-[#111723] p-4"><p className="text-sm text-[#b3bfd4]">Something on your radar?</p><Link to={community ? `/submit?community=${community}` : "/submit"} className={secondaryButton} state={status !== "authenticated" ? { returnTo: community ? `/submit?community=${community}` : "/submit" } : null}>Start a discussion <Icon name="diagonal" size={16} /></Link></div>
+        <Feed key={`${q}|${sort}|${community}|${status}`} filters={{ q, sort, community }} />
       </section>
       <aside className="space-y-5 lg:sticky lg:top-28"><div className="hidden lg:block"><CommunityList communities={communities} activeCommunity={community} onSelect={(id) => updateFilter("community", id)} error={communitiesError} loading={communitiesLoading} onRetry={() => setRetryCommunities((current) => current + 1)} /></div><section className="rounded-xl border border-white/10 bg-[#11131b]/95 p-5"><Icon name="spark" size={24} className="text-signal" /><h2 className="mt-4 text-lg font-medium">A little space for everyone.</h2><p className="mt-3 text-sm leading-[1.85] text-[#a9aebf]">Be curious. Be kind. There’s a whole universe of perspectives out here.</p><Link to="/landing" className="mt-5 inline-flex min-h-10 items-center gap-2 text-sm text-[#e8b3a3] hover:text-white">The SpaceChat story <Icon name="diagonal" size={16} /></Link></section></aside>
     </div>

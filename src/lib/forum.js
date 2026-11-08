@@ -6,15 +6,20 @@ export class ForumApiError extends Error {
   }
 }
 
-async function read(path, signal) {
+async function read(path, signal, { method = "GET", data } = {}) {
   let response;
   try {
-    response = await fetch(`/api${path}`, { credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" }, signal });
+    response = await fetch(`/api${path}`, {
+      method, credentials: "same-origin", cache: "no-store",
+      headers: { Accept: "application/json", ...(data !== undefined ? { "Content-Type": "application/json" } : {}) },
+      ...(data !== undefined ? { body: JSON.stringify(data) } : {}), signal,
+    });
   } catch (error) {
     if (error.name === "AbortError") throw error;
     throw new ForumApiError("We couldn’t reach SpaceChat. Please try again.");
   }
   let payload;
+  if (response.status === 204) return null;
   try { payload = await response.json(); }
   catch { throw new ForumApiError("SpaceChat is unavailable right now. Please try again shortly.", response.status); }
   if (!response.ok) throw new ForumApiError(typeof payload?.error === "string" ? payload.error : "We couldn’t load this transmission.", response.status);
@@ -34,15 +39,29 @@ function postRecord(payload) {
 }
 
 export const forumApi = {
-  async posts({ q = "", sort = "new", community = "", offset = 0, limit = 21 } = {}, signal) {
+  async posts({ q = "", sort = "new", community = "", author = "", offset = 0, limit = 21 } = {}, signal) {
     const params = new URLSearchParams({ sort, limit: String(limit), offset: String(offset) });
     if (q) params.set("q", q);
     if (community) params.set("subreddit_id", community);
+    if (author) params.set("author_id", String(author));
     return collection(await read(`/posts?${params}`, signal)).map(postRecord);
   },
   async post(id, signal) { return postRecord(await read(`/posts/${encodeURIComponent(id)}`, signal)); },
   async comments(id, signal) { return collection(await read(`/posts/${encodeURIComponent(id)}/comments`, signal)); },
+  async createPost(fields) { return postRecord(await read("/posts", undefined, { method: "POST", data: fields })); },
+  async updatePost(id, fields) { return postRecord(await read(`/posts/${encodeURIComponent(id)}`, undefined, { method: "PATCH", data: fields })); },
+  async deletePost(id) { return read(`/posts/${encodeURIComponent(id)}`, undefined, { method: "DELETE" }); },
+  async vote(id, value) { return read(`/posts/${encodeURIComponent(id)}/vote`, undefined, { method: "PUT", data: { value } }); },
+  async createComment(postId, fields) { return read(`/posts/${encodeURIComponent(postId)}/comments`, undefined, { method: "POST", data: fields }); },
+  async updateComment(id, fields) { return read(`/comments/${encodeURIComponent(id)}`, undefined, { method: "PATCH", data: fields }); },
+  async deleteComment(id) { return read(`/comments/${encodeURIComponent(id)}`, undefined, { method: "DELETE" }); },
   async communities(signal) { return collection(await read("/subreddits", signal)); },
+  async searchCommunities(q, signal) { return collection(await read(`/subreddits?${new URLSearchParams({ q })}`, signal)); },
+  async community(id, signal) { return read(`/subreddits/${encodeURIComponent(id)}`, signal); },
+  async setMembership(id, fields) { return read(`/subreddits/${encodeURIComponent(id)}/membership`, undefined, { method: "PUT", data: fields }); },
+  async user(id, signal) { return read(`/users/${encodeURIComponent(id)}`, signal); },
+  async updateUser(id, fields) { return read(`/users/${encodeURIComponent(id)}`, undefined, { method: "PUT", data: fields }); },
+  async chat(message) { return read("/ai/chat", undefined, { method: "POST", data: { message } }); },
   async popularCommunities(signal) {
     const items = collection(await read("/subreddits?sort=popular&limit=6", signal));
     if (items.some((item) => !item || !Number.isSafeInteger(item.id) || item.id < 1 || typeof item.name !== "string" || !Number.isSafeInteger(item.post_count) || item.post_count < 0)) {

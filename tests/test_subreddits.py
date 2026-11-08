@@ -23,6 +23,7 @@ class SubredditRoutesTest(unittest.TestCase):
             "name": "firstcontact",
             "description": "Meet your cosmic neighbors.",
             "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+            "post_count": 0, "member_count": 0, "is_member": False,
         }
 
     def test_popular_communities_are_public_and_include_real_post_counts(self):
@@ -58,8 +59,8 @@ class SubredditRoutesTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(set(response.get_json()[0]), set(self.community))
         query, parameters = self.cursor.execute.call_args.args
-        self.assertIn("ORDER BY id", query)
-        self.assertNotIn("post_count", query)
+        self.assertIn("ORDER BY s.id ASC", query)
+        self.assertIn("member_count", query)
         self.assertNotIn("LIMIT", query)
         self.assertEqual(parameters, ())
 
@@ -70,7 +71,7 @@ class SubredditRoutesTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         query, parameters = self.cursor.execute.call_args.args
-        self.assertTrue(query.endswith("ORDER BY id LIMIT %s"))
+        self.assertTrue(query.endswith("ORDER BY s.id ASC LIMIT %s"))
         self.assertEqual(parameters, (3,))
 
     def test_invalid_sort_and_limits_are_rejected_without_database_access(self):
