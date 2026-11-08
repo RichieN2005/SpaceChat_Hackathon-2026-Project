@@ -19,7 +19,6 @@ def error_json(message: str, status: int):
     return response
 
 
-@astrobot_bp.post("/api/ai/chat")
 def chat_request():
     """Rate-limited public POST /api/ai/chat endpoint."""
     if request.method != "POST":
@@ -139,11 +138,13 @@ def generate_mention(kind: str, source_id: int, client_key: str) -> str:
         return "failed"
 
 
-def install_astrobot(app):
+def install_astrobot(app, *, register_chat=True):
     """Register AstroBot on the EXISTING Flask application (keeps app:app)."""
     if "astrobot" in app.blueprints:
         return
     app.register_blueprint(astrobot_bp)
+    if register_chat:
+        app.add_url_rule("/api/ai/chat", "astrobot_chat", chat_request, methods=["POST"])
 
     @app.after_request
     def astrobot_handle_created_mentions(response):

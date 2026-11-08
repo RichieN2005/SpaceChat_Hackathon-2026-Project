@@ -152,7 +152,7 @@ export default function ForumDialog({ community, onClose, initiallyComposing = f
   }
   async function loadPosts() {
     const rows = await api(`/posts?subreddit_id=${community.apiId}&sort=${sort}`);
-    const loaded = await Promise.all(rows.map(async (post) => ({ ...post, avatar: "*", time: new Date(post.created_at).toLocaleString(), tag: "Discussion", comments: (await api(`/posts/${post.id}/comments`)).map((comment) => ({ ...comment, text: comment.body })) })));
+    const loaded = await Promise.all(rows.map(async (post) => ({ ...post, author: post.author_username || post.author, avatar: "*", time: new Date(post.created_at).toLocaleString(), tag: "Discussion", comments: (await api(`/posts/${post.id}/comments`)).map((comment) => ({ ...comment, author: comment.author_username || comment.author, text: comment.body })) })));
     setPosts(loaded);
   }
   useEffect(() => {
@@ -162,7 +162,7 @@ export default function ForumDialog({ community, onClose, initiallyComposing = f
     (async () => {
       try {
         const rows = await api(`/posts?subreddit_id=${community.apiId}&sort=${sort}`);
-        const loaded = await Promise.all(rows.map(async (post) => ({ ...post, avatar: "*", time: new Date(post.created_at).toLocaleString(), tag: "Discussion", comments: (await api(`/posts/${post.id}/comments`)).map((comment) => ({ ...comment, text: comment.body })) })));
+        const loaded = await Promise.all(rows.map(async (post) => ({ ...post, author: post.author_username || post.author, avatar: "*", time: new Date(post.created_at).toLocaleString(), tag: "Discussion", comments: (await api(`/posts/${post.id}/comments`)).map((comment) => ({ ...comment, author: comment.author_username || comment.author, text: comment.body })) })));
         if (active) setPosts(loaded);
       } catch (error) { if (active) setNotice(error.message); }
       finally { if (active) setLoading(false); }

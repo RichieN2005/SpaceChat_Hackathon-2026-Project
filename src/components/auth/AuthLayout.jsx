@@ -1,20 +1,24 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Icon, Logo } from "../landing/visuals";
+import { safeReturnTo } from "../../lib/authNavigation";
 
 export default function AuthLayout({ mode, title, accent, description, children }) {
   const headingRef = useRef(null);
   const returningRef = useRef(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const fromFeed = !location.state?.fromOrbit && location.state && Object.hasOwn(location.state, "returnTo");
 
-  function returnToOrbit() {
+  function returnToPreviousPage() {
     if (returningRef.current) return;
     returningRef.current = true;
     if (location.state?.fromOrbit) {
       navigate(-1);
+    } else if (fromFeed) {
+      navigate(safeReturnTo(location.state.returnTo), { replace: true });
     } else {
-      navigate("/", { state: { returnFromSurface: mode } });
+      navigate("/landing", { state: { returnFromSurface: mode } });
     }
   }
 
@@ -47,12 +51,12 @@ export default function AuthLayout({ mode, title, accent, description, children 
         <Logo onClick={(event) => {
           if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
           event.preventDefault();
-          returnToOrbit();
+          returnToPreviousPage();
         }} />
-        <button type="button" onClick={returnToOrbit} aria-label="Back to orbit" className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-white/25 bg-space/35 px-3 py-2 text-sm font-medium text-starlight transition-colors hover:border-signal hover:bg-space/60 sm:gap-2.5 sm:px-4 sm:text-base motion-reduce:transition-none">
+        <button type="button" onClick={returnToPreviousPage} aria-label={fromFeed ? "Back to the conversation" : "Back to orbit"} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-white/25 bg-space/35 px-3 py-2 text-sm font-medium text-starlight transition-colors hover:border-signal hover:bg-space/60 sm:gap-2.5 sm:px-4 sm:text-base motion-reduce:transition-none">
           <Icon name="arrow" size={18} className="rotate-180" />
           <span className="sm:hidden">Back</span>
-          <span className="hidden sm:inline">Back to orbit</span>
+          <span className="hidden sm:inline">{fromFeed ? "Back to the conversation" : "Back to orbit"}</span>
         </button>
       </header>
 

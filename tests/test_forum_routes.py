@@ -23,6 +23,8 @@ class Cursor:
             self.value = 0
         elif "FILTER" in sql:
             self.result = {"upvotes": int(self.value == 1), "downvotes": int(self.value == -1), "score": self.value}
+            if "MAX(value)" in sql:
+                self.result["user_vote"] = self.value
 
     def fetchone(self):
         return self.result
@@ -35,7 +37,7 @@ class ForumRoutesTest(unittest.TestCase):
     def setUp(self):
         app = Flask(__name__)
         app.secret_key = "test"
-        for blueprint in (posts, comments, votes):
+        for blueprint in (posts, comments):
             app.register_blueprint(blueprint)
         self.client = app.test_client()
         self.cursor = Cursor()
@@ -77,7 +79,7 @@ class ForumRoutesTest(unittest.TestCase):
             sql, params = self.cursor.calls[-1]
             self.assertIn("WHERE p.subreddit_id = %s", sql)
             self.assertIn("ORDER BY " + order, sql)
-            self.assertEqual(params, (None, 3))
+            self.assertEqual(params, (3, 20, 0))
         self.assertEqual(self.client.get("/api/posts?sort=invalid").status_code, 400)
 
     def test_comments_rank_by_upvotes_then_recency(self):

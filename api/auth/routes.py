@@ -1,10 +1,16 @@
-from flask import Blueprint, jsonify, session
+from flask import Blueprint, g, jsonify, session
 from psycopg.errors import UniqueViolation
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from api.common import database_cursor, error, json_object, serialize, text_field
+from api.common import database_cursor, error, json_object, login_required, serialize, text_field
 
 auth = Blueprint("auth", __name__, url_prefix="/api/auth")
+
+
+@auth.after_request
+def prevent_auth_response_caching(response):
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @auth.post("/register")
@@ -74,3 +80,30 @@ def login():
     session.clear()
     session["user_id"] = user["id"]
     return jsonify(user=serialize(user))
+
+
+@auth.get("/me")
+@login_required
+def current_user():
+    with database_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT id, username, bio, created_at, updated_at
+            FROM public.users
+            WHERE id = %s
+            """,
+            (g.user_id,),
+        )
+        user = cursor.fetchone()
+
+    if user is None:
+        session.clear()
+        return error("Login required", 401)
+
+    return jsonify(user=serialize(user))
+
+
+@auth.post("/logout")
+def logout():
+    session.clear()
+    return jsonify(message="Logged out")

@@ -32,6 +32,36 @@ def valid_id(value):
     return type(value) is int and 0 < value <= 2**63 - 1
 
 
+def viewer_id():
+    user_id = session.get("user_id")
+    return user_id if valid_id(user_id) else None
+
+
+def search_pattern(value):
+    escaped = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+def pagination(default=20, maximum=50):
+    try:
+        limit = int(request.args.get("limit", str(default)))
+    except ValueError:
+        return None, error("limit must be a positive integer", 400)
+    if limit < 1:
+        return None, error("limit must be a positive integer", 400)
+    try:
+        offset = int(request.args.get("offset", "0"))
+    except ValueError:
+        return None, error("offset must be an integer between 0 and 100000", 400)
+    if not 0 <= offset <= 100000:
+        return None, error("offset must be an integer between 0 and 100000", 400)
+    return (min(limit, maximum), offset), None
+
+
+def social_unavailable(feature):
+    return jsonify(error=f"{feature} is temporarily unavailable", code="migration_required"), 503
+
+
 def serialize(row):
     return {
         key: value.isoformat() if isinstance(value, datetime) else value

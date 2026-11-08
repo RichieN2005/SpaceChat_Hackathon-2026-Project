@@ -119,17 +119,18 @@ function MoonAuthButton({ mode, label, subtitle, onAuthNavigate, isDeparting, cl
   return (
     <button
       type="button"
-      className={`group pointer-events-auto absolute z-2 flex min-h-[60px] min-w-[180px] items-center justify-between gap-5 rounded-full border border-[#e3a28d66] bg-[#140b0bd9] px-[18px] py-[11px] text-left text-starlight shadow-[0_4px_24px_#16070250] backdrop-blur-md transition-[background,border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-signal hover:bg-[#2b100ee6] hover:shadow-[0_0_24px_#fa715936] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal disabled:cursor-wait disabled:opacity-50 max-[961px]:min-w-[160px] max-[961px]:gap-3 max-[961px]:px-[15px] max-[701px]:min-h-[54px] max-[701px]:min-w-[145px] max-[701px]:gap-2 max-[701px]:px-[13px] max-[701px]:py-2 motion-reduce:transform-none motion-reduce:transition-none ${className}`}
+      className={`group pointer-events-auto absolute z-2 flex min-h-[60px] w-[200px] items-center justify-between gap-4 rounded-full border border-[#e3a28d66] bg-[#140b0bd9] px-[18px] py-[11px] text-left text-starlight shadow-[0_4px_24px_#16070250] backdrop-blur-md transition-[background,border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-signal hover:bg-[#2b100ee6] hover:shadow-[0_0_24px_#fa715936] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal disabled:cursor-wait disabled:opacity-50 max-[961px]:w-[164px] max-[961px]:gap-2 max-[961px]:px-3 max-[701px]:min-h-[52px] max-[701px]:w-[clamp(132px,34vw,160px)] max-[701px]:py-2 motion-reduce:transform-none motion-reduce:transition-none ${className}`}
       aria-label={`${label} — ${subtitle.toLowerCase()}`}
       data-auth-target={mode}
       disabled={isDeparting}
       onClick={() => onAuthNavigate(mode)}
     >
       <span aria-hidden="true" className="pointer-events-none absolute top-1/2 -left-[49px] h-px w-12 bg-linear-to-r from-[#e3a28d80] to-[#e3a28d30] before:absolute before:-top-[2px] before:left-0 before:size-[5px] before:rounded-full before:bg-[#fcb49c] before:shadow-[0_0_0_4px_#fcb49c17] max-[961px]:-left-[33px] max-[961px]:w-8 max-[701px]:-left-[25px] max-[701px]:w-6" />
-      <span className="flex flex-col gap-1">
-        <span className="text-base font-semibold tracking-[-.2px] max-[701px]:text-sm">{label}</span>
-        <small className="font-mono text-[11px] leading-normal tracking-[.7px] text-[#d5b8aa] max-[701px]:text-[10px] max-[701px]:tracking-[.4px]">
-          {subtitle}
+      <span className="flex min-w-0 flex-col gap-1">
+        <span className="text-base font-semibold tracking-[-.2px] max-[701px]:text-[14px]">{label}</span>
+        <small className="whitespace-nowrap font-mono text-[11px] leading-normal tracking-[.5px] text-[#d5b8aa] max-[961px]:text-[10px] max-[701px]:text-[9px] max-[701px]:tracking-[.3px]">
+          <span className="hidden min-[701px]:inline">{subtitle}</span>
+          <span className="min-[701px]:hidden">{mode === "login" ? "WELCOME BACK" : "JOIN THE CREW"}</span>
         </small>
       </span>
       <Icon name="diagonal" size={16} className="text-[#fcb49c] transition-colors group-hover:text-signal max-[701px]:size-[14px] motion-reduce:transition-none" />
@@ -181,13 +182,14 @@ export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipE
         <span className="text-[12px] text-[#c3b6ad] max-[961px]:text-[10px] max-[701px]:text-[9px]">SC—001</span>
         <span>TRANSMITTING FROM EVERYWHERE</span>
       </div>
+      {showAuth && <>
       <MoonAuthButton
         mode="login"
         label="Log in"
         subtitle="LAND ON THE MOON"
         onAuthNavigate={onAuthNavigate}
         isDeparting={isDeparting}
-        className="left-[52%] top-[37%]"
+        className="left-[52%] top-[37%] max-[701px]:left-[45%]"
       />
       <MoonAuthButton
         mode="signup"
@@ -195,8 +197,9 @@ export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipE
         subtitle="JOIN THE CREW"
         onAuthNavigate={onAuthNavigate}
         isDeparting={isDeparting}
-        className="left-[49%] top-[61%]"
+        className="left-[49%] top-[61%] max-[701px]:left-[42%]"
       />
+      </>}
       <span aria-hidden="true" className="absolute bottom-[17px] left-[30%] z-2 font-mono text-[9px] leading-[normal] tracking-[1px] text-[#a39893] max-[1200px]:left-[38%] max-[1200px]:text-[8px] max-[961px]:bottom-[30px] max-[961px]:left-[34%] max-[961px]:text-[7px] max-[701px]:bottom-0 max-[701px]:left-[28%] max-[701px]:tracking-[.7px]">
         25° 19′ N &nbsp; 0° 00′ E &nbsp; / &nbsp; ALL ARE WELCOME
       </span>
