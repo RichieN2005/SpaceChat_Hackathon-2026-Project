@@ -50,6 +50,16 @@ export default function ForumLayout({ children }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const returnTo = `${location.pathname}${location.search}${location.hash}`;
+  const viewingJoined = location.pathname === "/communities" && new URLSearchParams(location.search).get("view") === "joined";
+  const communityRoute = location.pathname === "/communities" || location.pathname.startsWith("/communities/");
+  const navigation = [
+    { path: "/", label: "Feed", active: location.pathname === "/" },
+    { path: "/communities", label: "Communities", active: communityRoute && !viewingJoined },
+    ...(status === "authenticated" ? [{ path: "/communities?view=joined", label: "Your communities", active: viewingJoined }] : []),
+    { path: "/submit", label: "Create post", active: location.pathname === "/submit" },
+    { path: "/astrobot", label: "AstroBot · AI", active: location.pathname === "/astrobot" },
+    { path: "/landing", label: "Our universe", active: location.pathname === "/landing" },
+  ];
   async function signOut() {
     if (pending) return;
     setPending(true); setError("");
@@ -72,7 +82,7 @@ export default function ForumLayout({ children }) {
           {status === "authenticated" ? <><Link to={`/users/${user.id}`} className="max-w-28 truncate px-2 py-3 text-sm text-[#bbc0ce] hover:text-white" title={user.username}>My profile</Link><button type="button" onClick={signOut} disabled={pending} className={secondaryButton}>{pending ? "Logging out…" : "Log out"}</button></> : status === "loading" ? <span role="status" className="text-xs text-[#a6a8b4]">Checking signal…</span> : <><Link to="/login" state={{ returnTo }} className="px-2 py-3 text-sm font-medium text-[#d7d5db] hover:text-white">Log in</Link><Link to="/signup" state={{ returnTo }} className={primaryButton}>Sign up</Link></>}
         </nav>
       </div>
-      <nav aria-label="Explore SpaceChat" className="mx-auto flex max-w-[1440px] flex-wrap gap-x-5 border-t border-white/5 px-4 sm:px-7 lg:px-10">{[["/", "Feed"], ["/communities", "Communities"], ["/submit", "Create post"], ["/astrobot", "AstroBot · AI"], ["/landing", "Our universe"]].map(([path, label]) => <NavLink key={path} to={path} end={path === "/"} className={({ isActive }) => `inline-flex min-h-11 items-center border-b-2 text-xs ${isActive ? "border-signal text-white" : "border-transparent text-[#a3adbf] hover:text-white"}`}>{label}</NavLink>)}</nav>
+      <nav aria-label="Explore SpaceChat" className="mx-auto flex max-w-[1440px] flex-wrap gap-x-5 border-t border-white/5 px-4 sm:px-7 lg:px-10">{navigation.map(({ path, label, active }) => <Link key={path} to={path} aria-current={active ? "page" : undefined} className={`inline-flex min-h-11 items-center border-b-2 text-xs ${active ? "border-signal text-white" : "border-transparent text-[#a3adbf] hover:text-white"}`}>{label}</Link>)}</nav>
       {error && <p role="alert" className="mx-auto max-w-[1440px] px-4 pb-3 text-sm text-[#ffb39e] sm:px-7 lg:px-10">{error}</p>}
     </header>
     <main id="forum-main" className="mx-auto max-w-[1280px] px-4 pt-6 pb-14 sm:px-7 sm:pt-8 lg:px-10">{children}</main>

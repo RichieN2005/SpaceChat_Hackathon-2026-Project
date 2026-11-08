@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
+from google.genai import errors
 
 
 class AstroBotRoutesTest(unittest.TestCase):
@@ -63,6 +64,33 @@ class AstroBotRoutesTest(unittest.TestCase):
         self.assertEqual(response.status_code, 413)
         self.assertIn("error", response.get_json())
         self.constructor.assert_not_called()
+
+    def test_provider_status_is_logged_without_raw_details(self):
+        self.login()
+        self.provider.models.generate_content.side_effect = errors.ClientError(429, {"error": {"status": "RESOURCE_EXHAUSTED", "message": "private-provider-details-and-key"}})
+        with self.assertLogs(self.module.app.logger, level="WARNING") as captured:
+            response = self.client.post("/api/ai/chat", json={"message": "Hello"})
+        self.assertEqual(response.status_code, 503)
+        logs = " ".join(captured.output)
+        self.assertIn("code=429", logs)
+        self.assertIn("quota_or_rate_limit", logs)
+        self.assertNotIn("private-provider-details-and-key", logs)
+
+    def test_configuration_failures_have_safe_server_diagnostics(self):
+        self.login()
+        self.constructor.side_effect = ValueError("private-config-value")
+        with self.assertLogs(self.module.app.logger, level="ERROR") as captured:
+            response = self.client.post("/api/ai/chat", json={"message": "Hello"})
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("GEMINI_API_KEY", " ".join(captured.output))
+        self.assertNotIn("private-config-value", " ".join(captured.output))
+
+    def test_model_can_be_selected_without_changing_code(self):
+        self.login()
+        with patch.dict("os.environ", {"GEMINI_MODEL": "configured-test-model"}):
+            response = self.client.post("/api/ai/chat", json={"message": "Hello"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.provider.models.generate_content.call_args.kwargs["model"], "configured-test-model")
 
 
 if __name__ == "__main__":

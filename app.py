@@ -3,7 +3,7 @@ from functools import lru_cache
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 
 from api.auth.routes import auth
 from api.comments.routes import comments
@@ -47,7 +47,7 @@ def ask_space_bot(user_message: str) -> str | None:
 
     try:
         response = get_ai_client().models.generate_content(
-            model="gemini-2.5-flash",
+            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash",
             contents=user_message,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
@@ -55,8 +55,22 @@ def ask_space_bot(user_message: str) -> str | None:
             ),
         )
         answer = response.text
-        return answer if isinstance(answer, str) and answer.strip() else None
-    except Exception:
+        if isinstance(answer, str) and answer.strip():
+            return answer
+        app.logger.warning("AstroBot Gemini response contained no usable text")
+        return None
+    except errors.APIError as exc:
+        categories = {400: "invalid_request_or_key", 401: "authentication", 403: "permission", 404: "model_or_resource", 429: "quota_or_rate_limit", 500: "provider_error", 503: "provider_unavailable"}
+        # Provider exception strings can contain request details. Log only the
+        # status and a fixed category; never keys, prompts, or raw exceptions.
+        code = exc.code if type(exc.code) is int else 0
+        app.logger.warning("AstroBot Gemini request failed: code=%s category=%s", code, categories.get(code, "provider_error"))
+        return None
+    except ValueError:
+        app.logger.error("AstroBot configuration/request invalid: check Render GEMINI_API_KEY or GOOGLE_API_KEY and Gemini API settings")
+        return None
+    except Exception as exc:
+        app.logger.error("AstroBot request failed: type=%s", type(exc).__name__)
         return None
 
 @app.route('/api/ai/chat', methods=['POST'])
