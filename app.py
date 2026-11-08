@@ -1,58 +1,24 @@
 import os
-
-from flask import Flask, jsonify
-from database import get_db_connection
+from flask import Flask
 from dotenv import load_dotenv
 
-load_dotenv()  # Load environment variables from .env file
+# Import the Blueprints containing our API routes.
+from api.health import health_bp
 
+# Load environment variables for local development.
+load_dotenv()
+
+# Initialize Flask.
 app = Flask(__name__)
 
+# Configure Flask's secret key.
 app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
 
-@app.route("/api/health", methods=["GET"])
-def health_check():
-    """
-    Check whether Flask is running.
-    This endpoint is intended for local development."""
-    return jsonify({
-        "status": "ok",
-        "message": "Flask is running"
-    }), 200
-
-@app.route("/api/db-health", methods=["GET"])
-def database_health():
-    """
-    Check whether Flask can communicate with TigerData.
-
-    This endpoint is intended for local development.
-    """
-    try:
-        # Open a connection, run a query, then close
-        # the connection automatically.
-        with get_db_connection() as conn:
-            with conn.cursor() as cursor:
-
-                # Simple query to verify database access.
-                cursor.execute("SELECT 1;")
-                result = cursor.fetchone()
-
-        if result[0] == 1:
-            return jsonify({
-                "status": "connected",
-                "database": "TigerData"
-            }), 200
-
-    except Exception:
-        # Avoid exposing database credentials or internal
-        # connection details in API responses.
-        app.logger.exception("Database health check failed")
-
-        return jsonify({
-            "status": "error",
-            "message": "Database unavailable"
-        }), 503
+# Register all API endpoints.
+app.register_blueprint(health_bp)
 
 
 if __name__ == "__main__":
+    # Local development server only.
+    # Render uses Gunicorn instead.
     app.run(debug=True)
