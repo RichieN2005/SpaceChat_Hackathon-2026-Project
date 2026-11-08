@@ -332,3 +332,40 @@ The landing community list loads from `/api/subreddits`; if no communities are
 available, labeled session-only previews remain available. Real communities use
 the API for posts, replies, and votes. Run API regression checks with
 `.venv/Scripts/python.exe -m unittest discover -s tests`.
+
+
+## AstroBot integration
+
+AstroBot is merged into the existing Flask app and React community dialog.
+The chat dock works on all pages. Open a real community post and use
+**Ask in this thread** to publish an explicit `@AstroBot` comment, or mention
+`@AstroBot` in a new post/comment. Replies are saved as comments and labeled
+**AI bot**. The dialog refreshes in place; it does not reload the page.
+Sample communities remain session-only previews and cannot publish AI mentions.
+
+Before starting the updated backend:
+
+1. Install `requirements.txt` (now includes `google-genai`).
+2. Apply `migrations/001_votes.sql` if not already applied, then
+   `migrations/20261108_astrobot.sql` to the existing database.
+3. Configure backend-only `GEMINI_API_KEY` (or `GOOGLE_API_KEY`), `DATABASE_URL`,
+   and `SECRET_KEY`. `GEMINI_MODEL` defaults to `gemini-2.5-flash`.
+
+Optional backend settings: `ASTROBOT_CHAT_LIMIT_15M=10`,
+`ASTROBOT_CHAT_LIMIT_DAILY=250`, `ASTROBOT_MENTION_LIMIT_15M=8`,
+`ASTROBOT_MENTION_LIMIT_DAILY=100`, and `ASTROBOT_RATE_SECRET` (defaults to
+`SECRET_KEY`). Daily limits are global; 15-minute limits are per logged-in user
+or observed client IP. Counters are shared in PostgreSQL across workers.
+
+`POST /api/ai/chat` accepts `{"message":"..."}` (up to 1600 characters).
+It returns `sender`, `is_ai`, and `response`, or a safe 400/429/502/503 error.
+`GET /api/ai/mentions/post/:id` and `/api/ai/mentions/comment/:id` report mention
+status. Create responses include `X-AstroBot-Status` when a mention is requested.
+AI failures preserve the human post/comment. Mention generation runs synchronously
+with a 15-second provider timeout and one reservation per source; failed mentions
+are not retried automatically. Allow for generation time in server timeouts.
+
+The AstroBot migration adds `users.is_bot`, an AI account, quota counters, and
+mention reservations. It preserves existing accounts; an existing username/email
+collision must be resolved before the bot can save replies. No database migration,
+provider request, deployment, or push is performed by merging these files.

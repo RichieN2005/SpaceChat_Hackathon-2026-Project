@@ -17,7 +17,7 @@ def list_comments(post_id):
             return error("Post not found", 404)
         cursor.execute(
             """
-            SELECT c.*, u.username AS author,
+            SELECT c.*, u.username AS author, u.is_bot,
                 (SELECT count(*) FROM public.comment_votes WHERE comment_id=c.id AND value=1) AS upvotes,
                 (SELECT count(*) FROM public.comment_votes WHERE comment_id=c.id AND value=-1) AS downvotes,
                 COALESCE((SELECT value FROM public.comment_votes WHERE comment_id=c.id AND user_id=%s), 0) AS user_vote
