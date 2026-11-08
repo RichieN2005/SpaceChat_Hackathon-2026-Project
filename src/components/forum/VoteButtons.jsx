@@ -30,10 +30,25 @@ export default function VoteButtons({ post }) {
     } finally { pendingRef.current = false; setPending(false); }
   }
   return <div>
-    <div className="inline-flex min-h-10 items-center rounded-md border border-white/10 bg-white/4" aria-label="Post voting">
-      <button type="button" onClick={() => cast(1)} disabled={pending || status === "loading"} aria-label={vote === 1 ? "Remove upvote" : "Upvote post"} aria-pressed={vote === 1} className={`flex min-w-14 items-center justify-center gap-1 min-h-10 place-items-center rounded-l-md hover:bg-white/8 disabled:opacity-50 ${vote === 1 ? "text-signal" : "text-[#bcc3d2]"}`}><Icon name="up" size={18} /><span>{counts.upvotes}</span></button>
-
-      <button type="button" onClick={() => cast(-1)} disabled={pending || status === "loading"} aria-label={vote === -1 ? "Remove downvote" : "Downvote post"} aria-pressed={vote === -1} className={`flex min-w-14 items-center justify-center gap-1 min-h-10 place-items-center rounded-r-md hover:bg-white/8 disabled:opacity-50 ${vote === -1 ? "text-[#92bbfa]" : "text-[#bcc3d2]"}`}><Icon name="up" size={18} className="rotate-180" /><span>{counts.downvotes}</span></button>
+    <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Post voting">
+      {[1, -1].map((direction) => {
+        const up = direction === 1;
+        const selected = vote === direction;
+        const label = up ? "Upvote" : "Downvote";
+        const count = (up ? counts.upvotes : counts.downvotes) ?? 0;
+        return <button key={direction} type="button" onClick={() => cast(direction)}
+          disabled={pending || status === "loading"}
+          aria-label={`${selected ? "Remove " : ""}${label.toLowerCase()}: ${count} ${up ? "upvotes" : "downvotes"}`}
+          aria-pressed={selected}
+          className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-60 ${up
+            ? selected ? "border-[#ffac8d] bg-[#783b28] text-[#fff0e7] ring-1 ring-[#ffac8d]" : "border-[#ab6650] bg-[#2b1b18] text-[#ffbc9e] hover:bg-[#4a2b22]"
+            : selected ? "border-[#a6cdff] bg-[#254d79] text-[#eef7ff] ring-1 ring-[#a6cdff]" : "border-[#5b7fab] bg-[#172438] text-[#b9d8ff] hover:bg-[#253d5a]"}`}>
+          <Icon name={up ? "up" : "down"} size={19} />
+          <span>{label}</span>
+          <span aria-live="polite" className="min-w-6 rounded bg-black/25 px-1.5 py-0.5 text-center font-mono text-sm tabular-nums">{count}</span>
+          {selected && <span className="sr-only">Selected</span>}
+        </button>;
+      })}
     </div>
     {error && <p role="alert" className="mt-2 max-w-sm text-xs text-[#ffbba8]">{error}</p>}
   </div>;

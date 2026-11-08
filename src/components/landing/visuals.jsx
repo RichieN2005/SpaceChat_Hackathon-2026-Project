@@ -138,7 +138,7 @@ function MoonAuthButton({ mode, label, subtitle, onAuthNavigate, isDeparting, cl
   );
 }
 
-export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipEntrance = false }) {
+export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipEntrance = false, showAuth = true }) {
   const spinRef = useRef(null);
   const motion = useRef({ angle: 0, direction: 1, dragging: false });
   useEffect(() => {
