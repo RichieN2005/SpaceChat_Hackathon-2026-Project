@@ -1,9 +1,7 @@
 import os
-from functools import lru_cache
-from flask import Flask, request, jsonify
+
+from flask import Flask, jsonify
 from dotenv import load_dotenv
-from google import genai
-from google.genai import errors, types
 
 from api.auth.routes import auth
 from api.comments.routes import comments
@@ -11,7 +9,7 @@ from api.posts.routes import posts
 from api.subreddits.routes import subreddits
 from api.users.routes import users
 from api.health import health_bp
-from api.common import login_required
+from api.aiService.routes import ai_bp
 
 # Load environment variables for local development.
 load_dotenv()
@@ -28,106 +26,17 @@ app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
 def request_too_large(_error):
     return jsonify(error="Request body must be at most 128 KiB"), 413
 
-# Initialize AI only when it is used, so its configuration cannot block other routes.
-@lru_cache(maxsize=1)
-def get_ai_client():
-    return genai.Client()
 
-
-class AstroBotError(Exception):
-    """A fixed public error category, separate from provider diagnostics."""
-
-    def __init__(self, code):
-        messages = {
-            "ai_usage_limit": "AstroBot has reached its AI usage limit. Please try again later.",
-            "ai_configuration": "AstroBot’s AI service is unavailable. Please try again later.",
-            "ai_unavailable": "AstroBot is temporarily unavailable. Please try again later.",
-        }
-        super().__init__(messages[code])
-        self.code = code
-        self.status = 429 if code == "ai_usage_limit" else 503
-
-
-def ask_space_bot(user_message: str) -> str:
-    """
-    Sends a prompt to Gemini with system instructions to enforce a space theme.
-    """
-    system_instruction = (
-        "You are 'AstroBot', an AI communications officer aboard an interstellar orbital station. "
-        "You must respond to every prompt using space-themed terminology, cosmic metaphors, "
-        "and sci-fi flair (e.g., addressing users as 'Earthling', referring to data as 'telemetry', "
-        "and formatting your sign-offs like 'End transmission'). Keep the core answers accurate "
-        "while maintaining this immersive persona."
-    )
-
-    try:
-        response = get_ai_client().models.generate_content(
-            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash",
-            contents=user_message,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.7,
-            ),
-        )
-        answer = response.text
-    except errors.APIError as exc:
-        # Provider exception strings can contain request details. Log only the
-        # status and a fixed category; never keys, prompts, or raw exceptions.
-        code = exc.code if type(exc.code) is int else 0
-        if code == 429:
-            category = "ai_usage_limit"
-        elif code in (400, 401, 403, 404):
-            category = "ai_configuration"
-        else:
-            category = "ai_unavailable"
-        app.logger.warning("AstroBot Gemini request failed: code=%s category=%s", code, category)
-        raise AstroBotError(category) from None
-    except ValueError:
-        app.logger.error("AstroBot Gemini request failed: code=0 category=ai_configuration")
-        raise AstroBotError("ai_configuration") from None
-    except Exception:
-        app.logger.error("AstroBot Gemini request failed: code=0 category=ai_unavailable")
-        raise AstroBotError("ai_unavailable") from None
-
-    if isinstance(answer, str) and answer.strip():
-        return answer
-    app.logger.warning("AstroBot Gemini request failed: code=0 category=ai_unavailable")
-    raise AstroBotError("ai_unavailable") from None
-
-@app.route('/api/ai/chat', methods=['POST'])
-@login_required
-def chat_with_spacebot():
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return jsonify(error="JSON body must be an object"), 400
-    message = data.get("message")
-    if not isinstance(message, str) or not message.strip():
-        return jsonify(error="Message is required"), 400
-    user_message = message.strip()
-    if len(user_message) > 2000:
-        return jsonify(error="Message must be at most 2000 characters"), 400
-
-    try:
-        bot_response = ask_space_bot(user_message)
-    except AstroBotError as exc:
-        return jsonify(error=str(exc), code=exc.code), exc.status
-    
-    return jsonify({
-        "sender": "AstroBot",
-        "response": bot_response
-    })
-# -----------------------
-
-# Register all other API endpoints.
+# Register API modules. Keep the endpoint /api/ai/chat unchanged.
 app.register_blueprint(health_bp)
 app.register_blueprint(auth)
 app.register_blueprint(users)
 app.register_blueprint(subreddits)
 app.register_blueprint(posts)
 app.register_blueprint(comments)
+app.register_blueprint(ai_bp)
 
 
 if __name__ == "__main__":
-    # Local development server only.
-    # Render uses Gunicorn instead.
+    # Local development server only. Render uses Gunicorn app:app.
     app.run(debug=True)
