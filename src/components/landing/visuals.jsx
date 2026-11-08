@@ -42,10 +42,10 @@ export function Icon({ name, size = 20, className = "", ...props }) {
   );
 }
 
-export function Logo({ small = false }) {
+export function Logo({ small = false, onClick }) {
   const wordmark = small
-    ? "gap-2 text-[21px] tracking-[-.8px] max-[701px]:gap-[7px]"
-    : "gap-[11px] text-[27px] tracking-[-1.2px] max-[961px]:text-[23px] max-[701px]:gap-[9px] max-[701px]:text-[24px] max-[371px]:gap-[7px] max-[371px]:text-[21px]";
+    ? "gap-2 text-[22px] tracking-[-.8px] max-[701px]:gap-[7px]"
+    : "gap-[11px] text-[28px] tracking-[-1.2px] max-[961px]:text-[24px] max-[701px]:gap-[9px] max-[701px]:text-[25px] max-[371px]:gap-[7px] max-[371px]:text-[22px]";
   const mark = small
     ? "size-8 max-[701px]:size-[29px]"
     : "size-[41px] max-[961px]:size-[35px] max-[701px]:size-[34px] max-[371px]:size-[31px]";
@@ -54,6 +54,7 @@ export function Logo({ small = false }) {
     <a
       className={`inline-flex items-center whitespace-nowrap font-bold ${wordmark}`}
       href="/"
+      onClick={onClick}
       aria-label="SpaceChat home"
     >
       <span className={`block shrink-0 -rotate-4 ${mark}`}>
@@ -113,52 +114,67 @@ export function MiniPlanet({ planet, className = "" }) {
   );
 }
 
-function MoonPin({ title, subtitle, className }) {
+function MoonAuthButton({ mode, label, subtitle, onAuthNavigate, isDeparting, className }) {
   return (
-    <div className={`absolute z-2 flex items-center ${className}`}>
-      <span className="relative mr-3 h-px w-[65px] bg-linear-to-r from-[#e3a28d80] to-[#e3a28d30] before:absolute before:-top-[2px] before:left-0 before:size-[5px] before:rounded-full before:bg-[#fcb49c] before:shadow-[0_0_0_4px_#fcb49c17] max-[1200px]:w-8 max-[961px]:w-5 max-[701px]:mr-2 max-[701px]:w-[30px]" />
-      <span className="font-mono text-[11px] leading-[normal] tracking-[-.2px] text-[#e4d3ca] max-[1200px]:text-[9px] max-[961px]:text-[8px]">
-        {title}
-        <small className="mt-[9px] block text-[7px] leading-[normal] tracking-[.7px] text-[#aa9690] max-[1200px]:text-[6px] max-[961px]:max-w-[90px] max-[961px]:text-[5px] max-[961px]:leading-normal max-[701px]:max-w-none max-[701px]:tracking-[.3px]">
+    <button
+      type="button"
+      className={`group pointer-events-auto absolute z-2 flex min-h-[60px] min-w-[180px] items-center justify-between gap-5 rounded-full border border-[#e3a28d66] bg-[#140b0bd9] px-[18px] py-[11px] text-left text-starlight shadow-[0_4px_24px_#16070250] backdrop-blur-md transition-[background,border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-signal hover:bg-[#2b100ee6] hover:shadow-[0_0_24px_#fa715936] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal disabled:cursor-wait disabled:opacity-50 max-[961px]:min-w-[160px] max-[961px]:gap-3 max-[961px]:px-[15px] max-[701px]:min-h-[54px] max-[701px]:min-w-[145px] max-[701px]:gap-2 max-[701px]:px-[13px] max-[701px]:py-2 motion-reduce:transform-none motion-reduce:transition-none ${className}`}
+      aria-label={`${label} — ${subtitle.toLowerCase()}`}
+      data-auth-target={mode}
+      disabled={isDeparting}
+      onClick={() => onAuthNavigate(mode)}
+    >
+      <span aria-hidden="true" className="pointer-events-none absolute top-1/2 -left-[49px] h-px w-12 bg-linear-to-r from-[#e3a28d80] to-[#e3a28d30] before:absolute before:-top-[2px] before:left-0 before:size-[5px] before:rounded-full before:bg-[#fcb49c] before:shadow-[0_0_0_4px_#fcb49c17] max-[961px]:-left-[33px] max-[961px]:w-8 max-[701px]:-left-[25px] max-[701px]:w-6" />
+      <span className="flex flex-col gap-1">
+        <span className="text-base font-semibold tracking-[-.2px] max-[701px]:text-sm">{label}</span>
+        <small className="font-mono text-[11px] leading-normal tracking-[.7px] text-[#d5b8aa] max-[701px]:text-[10px] max-[701px]:tracking-[.4px]">
           {subtitle}
         </small>
       </span>
-    </div>
+      <Icon name="diagonal" size={16} className="text-[#fcb49c] transition-colors group-hover:text-signal max-[701px]:size-[14px] motion-reduce:transition-none" />
+    </button>
   );
 }
 
-export function MoonScene() {
+export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipEntrance = false }) {
   return (
     <div
       className="pointer-events-none absolute -right-[45px] top-[21px] z-0 h-[670px] w-[720px] mix-blend-screen min-[1550px]:-right-[25px] min-[1550px]:top-[10px] min-[1550px]:h-[740px] min-[1550px]:w-[810px] max-[1200px]:-right-[95px] max-[1200px]:top-6 max-[1200px]:h-[610px] max-[1200px]:w-[650px] max-[961px]:-right-[147px] max-[961px]:top-[31px] max-[961px]:h-[575px] max-[961px]:w-[600px] max-[701px]:relative max-[701px]:left-1/2 max-[701px]:right-auto max-[701px]:top-0 max-[701px]:z-1 max-[701px]:-mt-[5px] max-[701px]:aspect-[1.13] max-[701px]:h-auto max-[701px]:w-[calc(100%+80px)] max-[701px]:max-w-[580px] max-[701px]:-translate-x-1/2"
-      aria-hidden="true"
     >
-      <div className="absolute inset-[14%] rounded-full bg-[#b22c131a] blur-[58px]" />
-      <div className="absolute left-[4%] top-[36%] z-0 h-[35%] w-[93%] -rotate-34 rounded-full border border-[#a5837133] max-[701px]:left-[4.5%] max-[701px]:top-[37%] max-[701px]:h-[28%] max-[701px]:w-[91%]" />
-      <div className="absolute left-[9%] top-[5%] z-0 h-[87%] w-[83%] -rotate-25 rounded-full border border-[#a5837116] max-[701px]:left-[4.5%] max-[701px]:top-[7%] max-[701px]:h-[84%] max-[701px]:w-[91%]" />
+      <div aria-hidden="true" className="absolute inset-[14%] rounded-full bg-[#b22c131a] blur-[58px]" />
+      <div aria-hidden="true" className="absolute left-[4%] top-[36%] z-0 h-[35%] w-[93%] -rotate-34 rounded-full border border-[#a5837133] max-[701px]:left-[4.5%] max-[701px]:top-[37%] max-[701px]:h-[28%] max-[701px]:w-[91%]" />
+      <div aria-hidden="true" className="absolute left-[9%] top-[5%] z-0 h-[87%] w-[83%] -rotate-25 rounded-full border border-[#a5837116] max-[701px]:left-[4.5%] max-[701px]:top-[7%] max-[701px]:h-[84%] max-[701px]:w-[91%]" />
       <img
-        className="landing-moon-mask absolute inset-0 z-1 block size-full animate-moon-appear object-contain saturate-[.88] max-[961px]:opacity-85 max-[701px]:opacity-100 motion-reduce:animate-none"
+        ref={imageRef}
+        data-moon-image
+        className={`landing-moon-mask absolute inset-0 z-1 block size-full object-contain saturate-[.88] max-[961px]:opacity-85 max-[701px]:opacity-100 motion-reduce:animate-none ${skipEntrance ? "animate-none" : "animate-moon-appear"}`}
         src="/images/red-moon.jpg"
         alt=""
         width="1200"
         height="1200"
         fetchPriority="high"
       />
-      <div className="absolute left-[43%] top-10 z-2 flex flex-col gap-[7px] font-mono text-[8px] leading-[normal] tracking-[1.1px] text-[#a39893] max-[1200px]:left-[51%] max-[961px]:left-[45%] max-[961px]:top-[25px] max-[961px]:text-[6px] max-[701px]:left-[53%] max-[701px]:top-6 max-[701px]:gap-1 max-[701px]:text-[5px]">
-        <span className="text-[10px] text-[#c3b6ad] max-[961px]:text-[8px] max-[701px]:text-[7px]">SC—001</span>
+      <div aria-hidden="true" className="absolute left-[43%] top-10 z-2 flex flex-col gap-[7px] font-mono text-[10px] leading-[normal] tracking-[1.1px] text-[#a39893] max-[1200px]:left-[51%] max-[961px]:left-[45%] max-[961px]:top-[25px] max-[961px]:text-[8px] max-[701px]:left-[53%] max-[701px]:top-6 max-[701px]:gap-1 max-[701px]:text-[7px]">
+        <span className="text-[12px] text-[#c3b6ad] max-[961px]:text-[10px] max-[701px]:text-[9px]">SC—001</span>
         <span>TRANSMITTING FROM EVERYWHERE</span>
       </div>
-      <MoonPin
-        title="s/firstcontact"
-        subtitle="HELLO, OTHER WORLDS."
-        className="-right-5 top-[235px] min-[1550px]:top-[275px] max-[1200px]:right-10 max-[961px]:right-[68px] max-[961px]:top-[183px] max-[701px]:right-7 max-[701px]:top-[39%]"
+      <MoonAuthButton
+        mode="login"
+        label="Log in"
+        subtitle="LAND ON THE MOON"
+        onAuthNavigate={onAuthNavigate}
+        isDeparting={isDeparting}
+        className="left-[52%] top-[37%]"
       />
-      <MoonPin
-        title="s/deepthoughts"
-        subtitle="THINK WAY OUTSIDE THE BOX."
-        className="-right-[10px] top-[399px] min-[1550px]:top-[450px] max-[1200px]:right-[53px] max-[1200px]:top-[380px] max-[961px]:right-[70px] max-[961px]:top-[355px] max-[701px]:right-7 max-[701px]:top-[67%]"
+      <MoonAuthButton
+        mode="signup"
+        label="Sign up"
+        subtitle="JOIN THE CREW"
+        onAuthNavigate={onAuthNavigate}
+        isDeparting={isDeparting}
+        className="left-[49%] top-[61%]"
       />
-      <span className="absolute bottom-[17px] left-[30%] z-2 font-mono text-[7px] leading-[normal] tracking-[1px] text-[#a39893] max-[1200px]:left-[38%] max-[1200px]:text-[6px] max-[961px]:bottom-[30px] max-[961px]:left-[34%] max-[961px]:text-[5px] max-[701px]:bottom-0 max-[701px]:left-[28%] max-[701px]:tracking-[.7px]">
+      <span aria-hidden="true" className="absolute bottom-[17px] left-[30%] z-2 font-mono text-[9px] leading-[normal] tracking-[1px] text-[#a39893] max-[1200px]:left-[38%] max-[1200px]:text-[8px] max-[961px]:bottom-[30px] max-[961px]:left-[34%] max-[961px]:text-[7px] max-[701px]:bottom-0 max-[701px]:left-[28%] max-[701px]:tracking-[.7px]">
         25° 19′ N &nbsp; 0° 00′ E &nbsp; / &nbsp; ALL ARE WELCOME
       </span>
     </div>

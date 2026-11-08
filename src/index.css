@@ -6,8 +6,15 @@
   --color-starlight: #f3f1ed;
   --font-sans: Arial, Helvetica, sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --text-xs: .875rem;
+  --text-sm: 1rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.625rem;
   --animate-moon-appear: moon-appear 1.5s ease-out both;
   --animate-forum-appear: forum-appear .2s ease;
+  --animate-auth-reveal: auth-reveal .55s ease-out both;
 
   @keyframes moon-appear {
     from { opacity: 0; transform: translateY(15px) rotate(-3deg); }
@@ -17,6 +24,11 @@
   @keyframes forum-appear {
     from { opacity: 0; }
     to { opacity: 1; }
+  }
+
+  @keyframes auth-reveal {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 }
 
@@ -30,7 +42,7 @@
   }
 
   body {
-    @apply min-w-80 bg-space font-sans text-starlight antialiased;
+    @apply min-w-80 bg-space font-sans text-base text-starlight antialiased;
   }
 
   button { @apply cursor-pointer; }

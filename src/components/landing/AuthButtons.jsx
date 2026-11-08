@@ -1,4 +1,4 @@
-// Wire onAction to the authentication flow when it is implemented.
+// The landing page supplies the shared planet-to-auth transition handler.
 export default function AuthButtons({ onAction, className = "" }) {
   return (
     <div className={`items-center gap-3 min-[961px]:gap-4 ${className}`}>

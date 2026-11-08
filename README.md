@@ -10,10 +10,16 @@ Page structure:
 
 - `src/app/app.jsx` contains route definitions only.
 - `src/pages/LandingPage.jsx` contains the landing page and its interactions.
+- `src/pages/LoginPage.jsx` and `src/pages/SignupPage.jsx` provide separate `/login` and `/signup` pages.
+- `src/components/auth/AuthLayout.jsx` shares the enlarged lunar surface background and auth page layout.
+- `src/components/landing/PlanetTransition.jsx` animates into the lunar surface when opening an auth page and zooms back out when returning. The Back to orbit button, home logo, and browser Back return to the landing moon. Reduced-motion users navigate immediately.
+- `src/components/auth/useOrbitReturn.js` detects returns from auth pages, including browser Back, and restores focus to the corresponding planet marker after the zoom out.
 - `src/components/landing/visuals.jsx` contains the reusable logo, icons, starfield, moon scene, and small planets.
 - `src/components/landing/effects.css` contains only decorative texture backgrounds.
 - `src/app/ForumDialog.jsx` contains the session-only forum preview.
 - `src/index.css` configures Tailwind theme tokens, animations, and base styles. Layout, typography, colors, responsive behavior, and component states use Tailwind utility classes in JSX.
+
+The moon's Log in and Sign up markers and the navigation buttons open the corresponding auth page. These forms currently validate input and display a coming-soon notice; they do not create accounts, authenticate users, store credentials, or call an authentication API. Connect the form submit handlers to the backend when authentication is ready.
 
 The onboarding notes below describe the earlier scaffold and planned backend architecture; the landing page above supersedes references to the sample Home and About screens.
 

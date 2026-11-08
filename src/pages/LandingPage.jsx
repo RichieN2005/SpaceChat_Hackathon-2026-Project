@@ -1,6 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import ForumDialog from "../app/ForumDialog";
 import AuthButtons from "../components/landing/AuthButtons";
+import PlanetTransition from "../components/landing/PlanetTransition";
+import { captureMoonGeometry } from "../components/landing/orbitGeometry";
 import {
   GrainOverlay,
   Icon,
@@ -14,11 +17,11 @@ import {
 const pageWidth =
   "mx-auto w-[calc(100%-42px)] max-w-[1312px] min-[701px]:w-[calc(100%-64px)] min-[961px]:w-[calc(100%-88px)] min-[1200px]:w-[calc(100%-128px)] max-[371px]:w-[calc(100%-32px)]";
 const eyebrow =
-  "font-mono text-[8px] leading-normal tracking-[1px] text-[#b4a6a2] min-[701px]:text-[9px] min-[701px]:tracking-[1.4px]";
+  "font-mono text-[10px] leading-normal tracking-[1px] text-[#b4a6a2] min-[701px]:text-[11px] min-[701px]:tracking-[1.4px]";
 const sectionTitle =
-  "text-[39px] font-medium leading-[1.12] tracking-[-1.6px] min-[701px]:text-[41px] min-[961px]:text-[48px] min-[961px]:tracking-[-2px]";
+  "text-[41px] font-medium leading-[1.12] tracking-[-1.6px] min-[701px]:text-[43px] min-[961px]:text-[50px] min-[961px]:tracking-[-2px]";
 const coralButton =
-  "inline-flex min-h-[52px] items-center justify-center gap-8 rounded-[3px] bg-signal px-[22px] py-[17px] text-[13px] font-semibold text-[#130d0a] transition-[background,transform] duration-200 hover:-translate-y-0.5 hover:bg-[#ff8b72] motion-reduce:transform-none motion-reduce:transition-none";
+  "inline-flex min-h-[52px] items-center justify-center gap-8 rounded-[3px] bg-signal px-[22px] py-[17px] text-[15px] font-semibold text-[#130d0a] transition-[background,transform] duration-200 hover:-translate-y-0.5 hover:bg-[#ff8b72] motion-reduce:transform-none motion-reduce:transition-none";
 
 const communities = [
   {
@@ -100,13 +103,27 @@ function SectionLabel({ number, children, className = "" }) {
   );
 }
 
-export default function LandingPage() {
+export default function LandingPage({ returnFromSurface = null }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [returnMode] = useState(returnFromSurface);
+  const [isReturning, setIsReturning] = useState(Boolean(returnMode));
+  const returnStartedRef = useRef(false);
+  const moonImageRef = useRef(null);
+  const departingRef = useRef(false);
   const [activeCommunity, setActiveCommunity] = useState(0);
   const [selectedCommunity, setSelectedCommunity] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [authNotice, setAuthNotice] = useState("");
+  const [departure, setDeparture] = useState(null);
   const [votes, setVotes] = useState({});
   const community = communities[activeCommunity];
+
+  useLayoutEffect(() => {
+    if (!returnMode || returnStartedRef.current) return;
+    returnStartedRef.current = true;
+    const geometry = captureMoonGeometry(moonImageRef.current, { center: true });
+    setDeparture({ ...geometry, action: returnMode, direction: "out" });
+  }, [returnMode]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -124,8 +141,34 @@ export default function LandingPage() {
   }
 
   function handleAuthAction(action) {
+    if (departingRef.current || isReturning) return;
+    const route = action === "login" ? "/login" : "/signup";
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      navigate(route, { state: { fromOrbit: true } });
+      return;
+    }
+    departingRef.current = true;
     setMenuOpen(false);
-    setAuthNotice(`${action === "login" ? "Log in" : "Sign up"} is coming soon.`);
+
+    setDeparture({
+      ...captureMoonGeometry(moonImageRef.current),
+      action,
+      direction: "in",
+    });
+  }
+
+  function finishAuthTransition() {
+    if (departure.direction === "out") {
+      setDeparture(null);
+      setIsReturning(false);
+      departingRef.current = false;
+      navigate(location.pathname, { replace: true, state: null });
+      requestAnimationFrame(() => {
+        document.querySelector(`[data-auth-target="${returnMode}"]`)?.focus({ preventScroll: true });
+      });
+      return;
+    }
+    navigate(departure.action === "login" ? "/login" : "/signup", { state: { fromOrbit: true } });
   }
 
   function selectTab(event, index) {
@@ -154,7 +197,7 @@ export default function LandingPage() {
         Skip to content
       </a>
 
-      <div className="overflow-hidden">
+      <div className="overflow-hidden" inert={Boolean(departure) || isReturning}>
         <div className="relative isolate bg-[#08080a]">
           <Starfield />
           <GrainOverlay />
@@ -175,7 +218,7 @@ export default function LandingPage() {
                   key={href}
                   href={href}
                   onClick={() => setMenuOpen(false)}
-                  className="px-[5px] py-[15px] text-sm text-[#b7b5b7] transition-colors hover:text-white min-[701px]:p-0 min-[701px]:text-[11px] min-[961px]:text-[13px] motion-reduce:transition-none"
+                  className="px-[5px] py-[15px] text-sm text-[#b7b5b7] transition-colors hover:text-white min-[701px]:p-0 min-[701px]:text-[13px] min-[961px]:text-[15px] motion-reduce:transition-none"
                 >
                   {label}
                 </a>
@@ -188,7 +231,7 @@ export default function LandingPage() {
             <div className="ml-auto flex shrink-0 items-center gap-[13px] min-[701px]:ml-0 min-[961px]:gap-5 max-[371px]:gap-[9px]">
               <button
                 type="button"
-                className="flex items-center gap-[9px] rounded-[3px] border border-[#4a4140] bg-transparent p-[11px] text-[10px] whitespace-nowrap transition-colors hover:border-signal hover:bg-signal/4 min-[701px]:hidden min-[1200px]:flex min-[1200px]:gap-6 min-[1200px]:px-[18px] min-[1200px]:py-[14px] min-[1200px]:text-xs max-[371px]:hidden motion-reduce:transition-none"
+                className="flex items-center gap-[9px] rounded-[3px] border border-[#4a4140] bg-transparent p-[11px] text-[12px] whitespace-nowrap transition-colors hover:border-signal hover:bg-signal/4 min-[701px]:hidden min-[1200px]:flex min-[1200px]:gap-6 min-[1200px]:px-[18px] min-[1200px]:py-[14px] min-[1200px]:text-xs max-[481px]:hidden motion-reduce:transition-none"
                 onClick={() => openUniverse()}
               >
                 Enter the universe
@@ -215,7 +258,7 @@ export default function LandingPage() {
             aria-labelledby="hero-title"
           >
             <div className="relative z-2 min-w-0 min-[701px]:max-w-[670px]">
-              <p className="mb-[27px] flex items-center gap-2.5 font-mono text-[8px] leading-normal tracking-[1.1px] text-[#c1bdbb] min-[701px]:mb-[31px] min-[701px]:text-[9px] min-[701px]:tracking-[1.5px] min-[1200px]:text-[10px] max-[371px]:text-[7px]">
+              <p className="mb-[27px] flex items-center gap-2.5 font-mono text-[10px] leading-normal tracking-[1.1px] text-[#c1bdbb] min-[701px]:mb-[31px] min-[701px]:text-[11px] min-[701px]:tracking-[1.5px] min-[1200px]:text-[12px] max-[371px]:text-[9px]">
                 <SignalDot className="max-[701px]:size-1" />
                 A SOCIAL SPACE FOR EVERY SPECIES
               </p>
@@ -225,7 +268,7 @@ export default function LandingPage() {
               >
                 Your next<br />conversation<br />is <span className="text-signal">out there.</span>
               </h1>
-              <p className="mb-[25px] max-w-[345px] text-[13px] leading-[1.8] text-[#b2afb0] min-[701px]:mb-[30px] min-[701px]:max-w-[330px] min-[701px]:leading-[1.85] min-[961px]:max-w-[410px] min-[1200px]:text-sm">
+              <p className="mb-[25px] max-w-[345px] text-[15px] leading-[1.8] text-[#b2afb0] min-[701px]:mb-[30px] min-[701px]:max-w-[330px] min-[701px]:leading-[1.85] min-[961px]:max-w-[410px] min-[1200px]:text-sm">
                 A whole universe of interesting beings.
                 <br className="hidden min-[701px]:block" />{" "}
                 Find your people. Share your world. Get a little lost.
@@ -237,30 +280,35 @@ export default function LandingPage() {
                 >
                   Find your orbit <Icon name="diagonal" size={19} />
                 </button>
-                <a href="#universe" className="inline-flex items-center gap-2 py-[14px] text-[11px] text-[#d7d2cf] hover:text-signal min-[961px]:gap-[11px] min-[961px]:text-xs max-[371px]:text-[10px]">
+                <a href="#universe" className="inline-flex items-center gap-2 py-[14px] text-[13px] text-[#d7d2cf] hover:text-signal min-[961px]:gap-[11px] min-[961px]:text-xs max-[371px]:text-[12px]">
                   Take a look around <Icon name="arrow" size={17} />
                 </a>
               </div>
-              <div className="mt-[18px] flex items-center gap-2 font-mono text-[8px] tracking-[1.2px] text-[#8d8588] min-[701px]:mt-[23px] min-[701px]:text-[9px] min-[701px]:tracking-[1.4px]">
+              <div className="mt-[18px] flex items-center gap-2 font-mono text-[10px] tracking-[1.2px] text-[#8d8588] min-[701px]:mt-[23px] min-[701px]:text-[11px] min-[701px]:tracking-[1.4px]">
                 <span aria-hidden="true" className="h-[7px] w-[13px] -rotate-30 rounded-full border border-[#8d8588]" />
                 NO SPACESHIP REQUIRED.
               </div>
             </div>
-            <MoonScene />
+            <MoonScene
+              onAuthNavigate={handleAuthAction}
+              imageRef={moonImageRef}
+              isDeparting={Boolean(departure)}
+              skipEntrance={Boolean(returnMode)}
+            />
           </section>
 
           <div className={`${pageWidth} relative z-2 mt-[26px] flex h-[63px] items-center justify-between border-t border-white/[.075] min-[701px]:mt-0 min-[701px]:h-[68px]`}>
-            <span className="font-mono text-[7px] tracking-[.5px] text-[#91888b] min-[961px]:text-[9px] min-[961px]:tracking-[1.1px]">
+            <span className="font-mono text-[9px] tracking-[.5px] text-[#91888b] min-[961px]:text-[11px] min-[961px]:tracking-[1.1px]">
               <span className="mr-[7px] text-[#ddd4ce] min-[701px]:mr-3">01</span>
               / THE BEGINNING
             </span>
-            <a href="#universe" className="group flex items-center gap-[9px] font-mono text-[6px] tracking-[.9px] text-[#aba3a0] min-[701px]:gap-[15px] min-[701px]:text-[7px] min-[961px]:ml-[55px] min-[961px]:text-[8px] min-[961px]:tracking-[1.3px]">
+            <a href="#universe" className="group flex items-center gap-[9px] font-mono text-[8px] tracking-[.9px] text-[#aba3a0] min-[701px]:gap-[15px] min-[701px]:text-[9px] min-[961px]:ml-[55px] min-[961px]:text-[10px] min-[961px]:tracking-[1.3px]">
               THERE’S MORE OUT HERE
               <span className="grid size-[26px] place-items-center rounded-full border border-[#58443b] text-[#d6b6a3] transition-transform group-hover:translate-y-[3px] min-[701px]:size-[29px] motion-reduce:transform-none motion-reduce:transition-none">
                 <Icon name="down" size={17} />
               </span>
             </a>
-            <span className="hidden items-center gap-2 font-mono text-[7px] tracking-[.7px] text-[#a2948f] min-[701px]:flex min-[961px]:text-[8px] min-[961px]:tracking-[1px]">
+            <span className="hidden items-center gap-2 font-mono text-[9px] tracking-[.7px] text-[#a2948f] min-[701px]:flex min-[961px]:text-[10px] min-[961px]:tracking-[1px]">
               <SignalDot className="size-1!" /> OPEN TO THE UNIVERSE
             </span>
           </div>
@@ -271,7 +319,7 @@ export default function LandingPage() {
             {["SMALL PLANET.", "BIG CONVERSATIONS.", "NO ALIENATION.", "JUST CONNECTION."].map((label, index) => (
               <div key={label} className={`contents ${index === 3 ? "max-[701px]:hidden" : ""}`}>
                 {index > 0 && <Icon name="spark" size={18} className="w-2.5 text-[#a37a6d] min-[701px]:w-[11px] min-[961px]:w-[14px]" />}
-                <span className="text-[7px] font-medium tracking-[.8px] whitespace-nowrap text-[#afaaab] min-[701px]:text-[9px] min-[701px]:tracking-[1.6px] min-[961px]:text-[11px] min-[961px]:tracking-[2px] max-[371px]:text-[6px]">{label}</span>
+                <span className="text-[9px] font-medium tracking-[.8px] whitespace-nowrap text-[#afaaab] min-[701px]:text-[11px] min-[701px]:tracking-[1.6px] min-[961px]:text-[13px] min-[961px]:tracking-[2px] max-[371px]:text-[8px]">{label}</span>
               </div>
             ))}
           </div>
@@ -286,7 +334,7 @@ export default function LandingPage() {
                   Different worlds.<br /><span className="text-[#838086]">Same wavelength.</span>
                 </h2>
               </div>
-              <p className="mt-[23px] text-[13px] leading-[1.8] text-[#a19a9e] min-[701px]:mt-0 min-[701px]:mr-1 min-[701px]:mb-[3px] min-[701px]:text-xs min-[701px]:leading-[1.85] min-[961px]:text-[13px]">
+              <p className="mt-[23px] text-[15px] leading-[1.8] text-[#a19a9e] min-[701px]:mt-0 min-[701px]:mr-1 min-[701px]:mb-[3px] min-[701px]:text-xs min-[701px]:leading-[1.85] min-[961px]:text-[15px]">
                 There’s a space for your every curiosity.<br />
                 From your first hello to your latest<br className="hidden min-[701px]:block" />{" "}
                 existential spiral. You’ll fit right in.
@@ -309,13 +357,13 @@ export default function LandingPage() {
                   >
                     <MiniPlanet planet={item.planet} />
                     <span className="flex flex-col gap-[7px] min-[701px]:gap-2">
-                      <span className="text-[11px] font-medium tracking-[-.1px] min-[961px]:text-[13px] min-[961px]:tracking-[-.2px] min-[1200px]:text-[15px] max-[371px]:text-[10px]">{item.title}</span>
-                      <small className="font-mono text-[7px] text-[#9a8f96] min-[701px]:text-[8px] min-[961px]:text-[9px]">{item.handle}</small>
+                      <span className="text-[13px] font-medium tracking-[-.1px] min-[961px]:text-[15px] min-[961px]:tracking-[-.2px] min-[1200px]:text-[17px] max-[371px]:text-[12px]">{item.title}</span>
+                      <small className="font-mono text-[9px] text-[#9a8f96] min-[701px]:text-[10px] min-[961px]:text-[11px]">{item.handle}</small>
                     </span>
                     <Icon name="diagonal" size={18} className={`ml-auto hidden w-[14px] min-[701px]:block min-[961px]:w-[18px] ${activeCommunity === index ? "text-signal" : "text-[#8e818a]"}`} />
                   </button>
                 ))}
-                <p className="mx-[9px] my-7 hidden items-center gap-1.5 font-mono text-[6px] leading-[1.6] tracking-[.5px] text-[#94868f] min-[701px]:flex min-[961px]:mx-[13px] min-[961px]:gap-2.5 min-[961px]:text-[8px] min-[961px]:tracking-[.8px]">
+                <p className="mx-[9px] my-7 hidden items-center gap-1.5 font-mono text-[8px] leading-[1.6] tracking-[.5px] text-[#94868f] min-[701px]:flex min-[961px]:mx-[13px] min-[961px]:gap-2.5 min-[961px]:text-[10px] min-[961px]:tracking-[.8px]">
                   <Icon name="orbit" size={18} className="w-[13px] text-[#a57d6a] min-[961px]:w-[18px]" />
                   MANY WORLDS. ONE COMMUNITY.
                 </p>
@@ -330,14 +378,14 @@ export default function LandingPage() {
                 className="min-w-0 rounded-[3px] border border-[#343034] bg-[radial-gradient(ellipse_at_100%_0%,#c8876210,transparent_75%)] px-[17px] pt-[19px] min-[701px]:rounded-none min-[701px]:border-0 min-[701px]:border-l min-[701px]:bg-[radial-gradient(ellipse_at_98%_0%,#c8876210,transparent_55%)] min-[701px]:px-[21px] min-[701px]:pt-[27px] min-[961px]:px-[26px] min-[1200px]:px-8"
               >
                 <div className="flex items-center justify-between gap-2.5 font-mono">
-                  <span className="text-[6px] tracking-[.4px] text-[#aa9995] min-[701px]:tracking-[.65px] min-[961px]:text-[7px] min-[961px]:tracking-[1px] min-[1200px]:text-[8px] max-[371px]:text-[5px] max-[371px]:tracking-[.2px]">A SIGNAL FROM THE UNIVERSE</span>
-                  <span className="rounded-xs border border-[#43363b] p-1 text-[5px] tracking-[.4px] whitespace-nowrap text-[#ac9a98] min-[701px]:px-[7px] min-[701px]:py-[5px] min-[701px]:tracking-[.5px] min-[961px]:text-[6px] min-[961px]:tracking-[.7px] min-[1200px]:text-[7px]">DEMO TRANSMISSIONS</span>
+                  <span className="text-[8px] tracking-[.4px] text-[#aa9995] min-[701px]:tracking-[.65px] min-[961px]:text-[9px] min-[961px]:tracking-[1px] min-[1200px]:text-[10px] max-[371px]:text-[7px] max-[371px]:tracking-[.2px]">A SIGNAL FROM THE UNIVERSE</span>
+                  <span className="rounded-xs border border-[#43363b] p-1 text-[7px] tracking-[.4px] whitespace-nowrap text-[#ac9a98] min-[701px]:px-[7px] min-[701px]:py-[5px] min-[701px]:tracking-[.5px] min-[961px]:text-[8px] min-[961px]:tracking-[.7px] min-[1200px]:text-[9px]">DEMO TRANSMISSIONS</span>
                 </div>
                 <div className="flex items-center justify-between gap-4 py-6 min-[701px]:pt-[27px] min-[701px]:pb-[25px]">
                   <div>
-                    <span className="font-mono text-[9px] text-(--planet-color) min-[701px]:text-[10px]">{community.handle}</span>
-                    <h3 className="mt-2 mb-2.5 text-2xl font-medium leading-[1.2] tracking-[-.6px] min-[961px]:text-[26px]">{community.title}</h3>
-                    <p className="max-w-[225px] text-[11px] leading-[1.6] text-[#a49a9f] min-[701px]:max-w-none min-[961px]:text-xs">{community.description}</p>
+                    <span className="font-mono text-[11px] text-(--planet-color) min-[701px]:text-[12px]">{community.handle}</span>
+                    <h3 className="mt-2 mb-2.5 text-2xl font-medium leading-[1.2] tracking-[-.6px] min-[961px]:text-[28px]">{community.title}</h3>
+                    <p className="max-w-[225px] text-[13px] leading-[1.6] text-[#a49a9f] min-[701px]:max-w-none min-[961px]:text-xs">{community.description}</p>
                   </div>
                   <MiniPlanet planet={community.planet} className="size-12! opacity-90 shadow-[inset_-17px_-5px_21px_#000b]! min-[961px]:size-16!" />
                 </div>
@@ -349,19 +397,19 @@ export default function LandingPage() {
                         aria-label={`${votes[key] ? "Remove upvote from" : "Upvote"} ${post}`}
                         aria-pressed={!!votes[key]}
                         onClick={() => setVotes((previous) => ({ ...previous, [key]: !previous[key] }))}
-                        className={`flex min-w-[29px] flex-col items-center gap-1 rounded-[3px] border px-[5px] py-2 font-mono text-[9px] transition-colors hover:border-signal/45 hover:bg-signal/4 hover:text-signal min-[701px]:min-w-8 min-[701px]:px-1.5 min-[701px]:text-[10px] motion-reduce:transition-none ${votes[key] ? "border-signal/45 bg-signal/4 text-signal" : "border-[#45383f] bg-transparent text-[#b0a3ab]"}`}
+                        className={`flex min-w-[29px] flex-col items-center gap-1 rounded-[3px] border px-[5px] py-2 font-mono text-[11px] transition-colors hover:border-signal/45 hover:bg-signal/4 hover:text-signal min-[701px]:min-w-8 min-[701px]:px-1.5 min-[701px]:text-[12px] motion-reduce:transition-none ${votes[key] ? "border-signal/45 bg-signal/4 text-signal" : "border-[#45383f] bg-transparent text-[#b0a3ab]"}`}
                       >
                         <Icon name="up" size={16} />
                         <span>{[42, 28][index] + (votes[key] ? 1 : 0)}</span>
                       </button>
                       <div className="min-w-0">
-                        <p className="mb-[9px] flex flex-wrap items-center gap-[5px] font-mono text-[7px] text-[#a395a0] min-[701px]:gap-1.5 min-[961px]:text-[8px] max-[371px]:text-[6px]">
-                          <span aria-hidden="true" className={`inline-grid size-[15px] place-items-center rounded-full font-sans text-[11px] min-[701px]:size-4 min-[701px]:text-xs ${index === 0 ? "bg-[#465a5080] text-[#c3d4b6]" : "bg-[#59496680] text-[#bcb0cf]"}`}>{index === 0 ? "◡" : "✧"}</span>
+                        <p className="mb-[9px] flex flex-wrap items-center gap-[5px] font-mono text-[9px] text-[#a395a0] min-[701px]:gap-1.5 min-[961px]:text-[10px] max-[371px]:text-[8px]">
+                          <span aria-hidden="true" className={`inline-grid size-[15px] place-items-center rounded-full font-sans text-[13px] min-[701px]:size-4 min-[701px]:text-xs ${index === 0 ? "bg-[#465a5080] text-[#c3d4b6]" : "bg-[#59496680] text-[#bcb0cf]"}`}>{index === 0 ? "◡" : "✧"}</span>
                           {index === 0 ? "u/definitely_not_an_alien" : "u/cosmic_overthinker"}
                           <span className="text-[#95868f]">· {index === 0 ? "2h" : "4h"}</span>
                         </p>
-                        <button onClick={() => openUniverse(community)} className="block bg-transparent p-0 text-left text-xs font-medium leading-[1.65] text-[#ddd3d8] hover:text-white min-[701px]:leading-[1.6] min-[961px]:text-[13px]">{post}</button>
-                        <button onClick={() => openUniverse(community)} className="flex min-h-[30px] items-center gap-1.5 bg-transparent pt-2.5 text-[9px] text-[#a0909b] hover:text-signal">
+                        <button onClick={() => openUniverse(community)} className="block bg-transparent p-0 text-left text-xs font-medium leading-[1.65] text-[#ddd3d8] hover:text-white min-[701px]:leading-[1.6] min-[961px]:text-[15px]">{post}</button>
+                        <button onClick={() => openUniverse(community)} className="flex min-h-[30px] items-center gap-1.5 bg-transparent pt-2.5 text-[11px] text-[#a0909b] hover:text-signal">
                           <Icon name="chat" size={13} /> Join the conversation <Icon name="arrow" size={13} className="ml-[5px]" />
                         </button>
                       </div>
@@ -380,19 +428,19 @@ export default function LandingPage() {
               <div className="mb-[31px] min-[701px]:mb-[38px] min-[701px]:flex min-[701px]:items-end min-[701px]:justify-between min-[701px]:gap-[30px] min-[961px]:gap-10">
                 <div>
                   <SectionLabel number="02" className="mb-5 min-[701px]:mb-[22px]">YOUR FIRST SMALL STEP</SectionLabel>
-                  <h2 id="how-title" className="max-w-80 text-[33px] font-medium leading-[1.15] tracking-[-1.2px] min-[701px]:max-w-none min-[701px]:text-[28px] min-[701px]:leading-[1.12] min-[701px]:tracking-[-1.25px] min-[961px]:text-[31px] min-[1200px]:text-[35px]">Getting here was the hard part.</h2>
+                  <h2 id="how-title" className="max-w-80 text-[35px] font-medium leading-[1.15] tracking-[-1.2px] min-[701px]:max-w-none min-[701px]:text-[30px] min-[701px]:leading-[1.12] min-[701px]:tracking-[-1.25px] min-[961px]:text-[33px] min-[1200px]:text-[37px]">Getting here was the hard part.</h2>
                 </div>
-                <span className="hidden pb-1.5 font-mono text-[7px] tracking-[.8px] text-[#9b8a96] min-[701px]:block min-[961px]:text-[8px] min-[961px]:tracking-[1.2px]">MAKE YOURSELF AT HOME.</span>
+                <span className="hidden pb-1.5 font-mono text-[9px] tracking-[.8px] text-[#9b8a96] min-[701px]:block min-[961px]:text-[10px] min-[961px]:tracking-[1.2px]">MAKE YOURSELF AT HOME.</span>
               </div>
               <div className="grid gap-7 min-[701px]:grid-cols-3 min-[701px]:gap-[25px] min-[961px]:gap-[35px] min-[1200px]:gap-12">
                 {steps.map((step, index) => (
                   <article key={step.title} className="relative border-t border-[#3c3333] pt-[26px] pl-[47px] min-[701px]:pt-[22px] min-[701px]:pl-0">
                     <div className="min-[701px]:mb-[26px] min-[701px]:flex min-[701px]:items-center min-[701px]:justify-between">
-                      <span className="absolute top-[29px] left-0 font-mono text-[10px] text-[#a78e86] min-[701px]:static">0{index + 1}</span>
+                      <span className="absolute top-[29px] left-0 font-mono text-[12px] text-[#a78e86] min-[701px]:static">0{index + 1}</span>
                       <Icon name={step.icon} size={29} className="absolute top-[26px] right-[3px] mr-2 size-[23px] text-[#c59a86] min-[701px]:static min-[701px]:size-[29px]" />
                     </div>
-                    <h3 className="mr-10 mb-3 text-[21px] font-medium tracking-[-.5px] min-[701px]:mr-0 min-[701px]:mb-[13px] min-[701px]:text-[19px] min-[961px]:text-[21px]">{step.title}</h3>
-                    <p className="max-w-80 pr-[27px] text-xs leading-[1.85] text-[#a499a1] min-[701px]:max-w-[300px] min-[701px]:pr-0 min-[961px]:text-[13px]">{step.description}</p>
+                    <h3 className="mr-10 mb-3 text-[23px] font-medium tracking-[-.5px] min-[701px]:mr-0 min-[701px]:mb-[13px] min-[701px]:text-[21px] min-[961px]:text-[23px]">{step.title}</h3>
+                    <p className="max-w-80 pr-[27px] text-xs leading-[1.85] text-[#a499a1] min-[701px]:max-w-[300px] min-[701px]:pr-0 min-[961px]:text-[15px]">{step.description}</p>
                   </article>
                 ))}
               </div>
@@ -405,8 +453,8 @@ export default function LandingPage() {
               <Icon name="spark" size={30} className="absolute top-[82px] -right-[5px] w-5 rotate-15 text-[#9b7058] min-[701px]:top-[92px] min-[701px]:right-[7px] min-[701px]:w-[30px]" />
             </div>
             <SectionLabel number="03" className="mb-6 text-[#b6a6a1]">BUILT FOR THE CURIOUS</SectionLabel>
-            <h2 id="story-title" className="text-[37px] font-medium leading-[1.18] tracking-[-1.5px] min-[701px]:text-[45px] min-[701px]:leading-[1.16] min-[701px]:tracking-[-2.2px] min-[961px]:text-[51px] max-[371px]:text-[33px]">Space is vast.<br />It doesn’t have to feel empty.</h2>
-            <p className="mx-auto mt-6 mb-[27px] max-w-[325px] text-xs leading-[1.9] text-[#a395a0] min-[701px]:mt-[25px] min-[701px]:mb-[29px] min-[701px]:max-w-none min-[701px]:text-[13px]">
+            <h2 id="story-title" className="text-[39px] font-medium leading-[1.18] tracking-[-1.5px] min-[701px]:text-[47px] min-[701px]:leading-[1.16] min-[701px]:tracking-[-2.2px] min-[961px]:text-[53px] max-[371px]:text-[35px]">Space is vast.<br />It doesn’t have to feel empty.</h2>
+            <p className="mx-auto mt-6 mb-[27px] max-w-[325px] text-xs leading-[1.9] text-[#a395a0] min-[701px]:mt-[25px] min-[701px]:mb-[29px] min-[701px]:max-w-none min-[701px]:text-[15px]">
               We made SpaceChat for a simple reason: the universe is more<br className="hidden min-[701px]:block" />{" "}
               interesting when we talk to each other. Earthlings, aliens,<br className="hidden min-[701px]:block" />{" "}
               and everyone in between — this is your space.
@@ -414,7 +462,7 @@ export default function LandingPage() {
             <button onClick={() => openUniverse(communities[1])} className={`${coralButton} gap-7! px-[23px]! text-xs! min-[701px]:gap-9!`}>
               Let’s make contact <Icon name="diagonal" size={19} />
             </button>
-            <a href="https://devpost.com/software/space-chat" target="_blank" rel="noreferrer" className="mt-[22px] flex items-center justify-center gap-[5px] py-2 text-[9px] text-[#a18c9a] hover:text-[#d8c1b4] min-[701px]:mt-5 min-[701px]:gap-[7px] min-[701px]:text-[10px]">
+            <a href="https://devpost.com/software/space-chat" target="_blank" rel="noreferrer" className="mt-[22px] flex items-center justify-center gap-[5px] py-2 text-[11px] text-[#a18c9a] hover:text-[#d8c1b4] min-[701px]:mt-5 min-[701px]:gap-[7px] min-[701px]:text-[12px]">
               A little idea. A hackathon. A whole universe. <Icon name="diagonal" size={13} />
             </a>
           </section>
@@ -422,24 +470,12 @@ export default function LandingPage() {
 
         <footer className={`${pageWidth} grid min-h-[125px] grid-cols-2 items-center gap-2.5 border-t border-[#2c272b] py-[25px] min-[701px]:flex min-[701px]:min-h-[100px] min-[701px]:justify-between min-[701px]:gap-[25px] min-[701px]:py-0`}>
           <Logo small />
-          <span className="col-span-2 row-start-2 font-mono text-[7px] tracking-[.8px] text-[#9c8798] min-[701px]:text-[8px] min-[701px]:tracking-[1.2px]">MADE ON EARTH. OPEN TO EVERYONE.</span>
-          <a href="#main" className="flex items-center justify-end gap-[9px] py-[14px] text-[10px] text-[#b4a1ae] hover:text-signal min-[701px]:gap-3 min-[701px]:text-[11px]">Back to the stars <Icon name="up" size={15} /></a>
+          <span className="col-span-2 row-start-2 font-mono text-[9px] tracking-[.8px] text-[#9c8798] min-[701px]:text-[10px] min-[701px]:tracking-[1.2px]">MADE ON EARTH. OPEN TO EVERYONE.</span>
+          <a href="#main" className="flex items-center justify-end gap-[9px] py-[14px] text-[12px] text-[#b4a1ae] hover:text-signal min-[701px]:gap-3 min-[701px]:text-[13px]">Back to the stars <Icon name="up" size={15} /></a>
         </footer>
       </div>
 
-      {authNotice && (
-        <div className="fixed right-5 bottom-5 left-5 z-50 flex items-center justify-between gap-5 rounded-md border border-[#4a4140] bg-[#171416] px-4 py-3 text-sm text-starlight shadow-lg min-[701px]:left-auto">
-          <p role="status">{authNotice}</p>
-          <button
-            type="button"
-            className="grid size-8 shrink-0 place-items-center rounded-full bg-transparent text-[#b7b5b7] hover:text-white"
-            aria-label="Dismiss notification"
-            onClick={() => setAuthNotice("")}
-          >
-            <Icon name="close" size={16} />
-          </button>
-        </div>
-      )}
+      {departure && <PlanetTransition departure={departure} onComplete={finishAuthTransition} />}
 
       {selectedCommunity && (
         <ForumDialog community={selectedCommunity} onClose={() => setSelectedCommunity(null)} />
