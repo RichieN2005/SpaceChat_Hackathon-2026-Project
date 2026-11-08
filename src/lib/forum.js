@@ -43,6 +43,13 @@ export const forumApi = {
   async post(id, signal) { return postRecord(await read(`/posts/${encodeURIComponent(id)}`, signal)); },
   async comments(id, signal) { return collection(await read(`/posts/${encodeURIComponent(id)}/comments`, signal)); },
   async communities(signal) { return collection(await read("/subreddits", signal)); },
+  async popularCommunities(signal) {
+    const items = collection(await read("/subreddits?sort=popular&limit=6", signal));
+    if (items.some((item) => !item || !Number.isSafeInteger(item.id) || item.id < 1 || typeof item.name !== "string" || !Number.isSafeInteger(item.post_count) || item.post_count < 0)) {
+      throw new ForumApiError("We couldn’t load popular communities. Please try again.");
+    }
+    return items;
+  },
 };
 
 export function authorName(item) { return item.author_username ? `u/${item.author_username}` : `User #${item.author_id}`; }

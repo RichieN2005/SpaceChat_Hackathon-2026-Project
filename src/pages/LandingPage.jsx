@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useAuth } from "../components/auth/AuthProvider";
 import AuthButtons from "../components/landing/AuthButtons";
+import PopularCommunities from "../components/landing/PopularCommunities";
 import PlanetTransition from "../components/landing/PlanetTransition";
 import { captureMoonGeometry } from "../components/landing/orbitGeometry";
 import {
@@ -328,6 +329,7 @@ export default function LandingPage({ returnFromSurface = null }) {
 
         <main>
           <section id="universe" className={`${pageWidth} py-[65px] min-[701px]:py-20 min-[961px]:pt-[105px] min-[961px]:pb-[100px]`} aria-labelledby="universe-title">
+            {status === "authenticated" ? <PopularCommunities /> : <>
             <div className="mb-[29px] min-[701px]:mb-[43px] min-[701px]:flex min-[701px]:items-end min-[701px]:justify-between min-[701px]:gap-[30px] min-[961px]:gap-10">
               <div>
                 <SectionLabel number="01" className="mb-5 min-[701px]:mb-[22px]">FIND YOUR CORNER OF THE COSMOS</SectionLabel>
@@ -422,6 +424,7 @@ export default function LandingPage({ returnFromSurface = null }) {
                 </button>
               </div>
             </div>
+            </>}
           </section>
 
           <section id="how-it-works" className="border-y border-[#272429] bg-[#101012] py-[58px] min-[701px]:pt-[73px] min-[701px]:pb-20" aria-labelledby="how-title">

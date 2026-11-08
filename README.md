@@ -14,6 +14,8 @@ Routes:
 
 This phase provides reading and account access. Voting, composing posts, and submitting replies are not exposed in the forum UI yet. The backend's existing write endpoints still require a session. The generated moon asset and its generation prompt are documented in `public/images/README.md`.
 
+Signed-in visitors to `/landing` see up to six popular communities in place of the sample community preview, with login/signup controls hidden. Popularity is the number of public posts, using `GET /api/subreddits?sort=popular&limit=6`; each community opens its filtered feed at `/?community=<id>`. The section handles loading, empty results, and errors with retry. The default community API response remains unchanged. Deploy the frontend and backend together for this addition; no migration is needed.
+
 Page structure:
 
 - `src/app/app.jsx` defines the public feed, post detail, marketing, and auth routes.

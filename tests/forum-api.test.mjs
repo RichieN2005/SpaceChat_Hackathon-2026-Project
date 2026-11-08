@@ -71,6 +71,25 @@ test("post, comment, and community reads use their public API paths", async () =
   ]);
 });
 
+test("popular communities request ranked counts once with the cancellation signal", async () => {
+  const ranked = [
+    { id: 2, name: "firstcontact", description: "Curiosity travels further.", created_at: post.created_at, post_count: 10 },
+    { id: 1, name: "astronomy", description: "Stars and strange worlds.", created_at: post.created_at, post_count: 9 },
+  ];
+  const fetch = mock.method(globalThis, "fetch", async () => json(ranked));
+  const controller = new AbortController();
+  assert.deepEqual(await forumApi.popularCommunities(controller.signal), ranked);
+  assert.equal(fetch.mock.callCount(), 1);
+  const [path, options] = fetch.mock.calls[0].arguments;
+  const url = new URL(path, "https://spacechat.example");
+  assert.equal(url.pathname, "/api/subreddits");
+  assert.equal(url.searchParams.get("sort"), "popular");
+  assert.equal(url.searchParams.get("limit"), "6");
+  assert.equal(options.signal, controller.signal);
+  assert.equal(options.credentials, "same-origin");
+  assert.equal(options.cache, "no-store");
+});
+
 test("post path IDs are encoded rather than interpreted as another path", async () => {
   const fetch = mock.method(globalThis, "fetch", async () => json(post));
   await forumApi.post("28/extra?secret=yes");

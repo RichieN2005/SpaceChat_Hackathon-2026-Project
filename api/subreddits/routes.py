@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from psycopg.errors import UniqueViolation
 
 from api.common import database_cursor, error, json_object, login_required, serialize, text_field, valid_id
@@ -8,10 +8,36 @@ subreddits = Blueprint("subreddits", __name__, url_prefix="/api/subreddits")
 
 @subreddits.get("")
 def list_subreddits():
+    sort = request.args.get("sort", "id")
+    if sort not in ("id", "popular"):
+        return error("sort must be id or popular", 400)
+
+    limit = 6 if sort == "popular" else None
+    if "limit" in request.args:
+        try:
+            limit = int(request.args["limit"])
+        except ValueError:
+            return error("limit must be a positive integer", 400)
+        if limit < 1:
+            return error("limit must be a positive integer", 400)
+        limit = min(limit, 20)
+
+    if sort == "popular":
+        query = """
+            SELECT s.id, s.name, s.description, s.created_at,
+                   (SELECT COUNT(*) FROM public.posts AS p WHERE p.subreddit_id = s.id) AS post_count
+            FROM public.subreddits AS s
+            ORDER BY post_count DESC, s.id ASC
+        """
+    else:
+        query = "SELECT id, name, description, created_at FROM public.subreddits ORDER BY id"
+    parameters = ()
+    if limit is not None:
+        query += " LIMIT %s"
+        parameters = (limit,)
+
     with database_cursor() as cursor:
-        cursor.execute(
-            "SELECT id, name, description, created_at FROM public.subreddits ORDER BY id"
-        )
+        cursor.execute(query, parameters)
         rows = cursor.fetchall()
     return jsonify([serialize(row) for row in rows])
 
