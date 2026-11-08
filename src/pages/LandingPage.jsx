@@ -157,7 +157,7 @@ export default function LandingPage({ returnFromSurface = null }) {
     } else if (compose) {
       navigate(item.apiId ? `/submit?community=${item.apiId}` : "/submit");
     } else {
-      navigate(item.apiId ? `/communities/${item.apiId}` : "/");
+      navigate(item.apiId ? `/communities/${item.apiId}` : "/home");
     }
   }
 
@@ -253,7 +253,7 @@ export default function LandingPage({ returnFromSurface = null }) {
               <button
                 type="button"
                 className="flex items-center gap-[9px] rounded-[3px] border border-[#4a4140] bg-transparent p-[11px] text-[12px] whitespace-nowrap transition-colors hover:border-signal hover:bg-signal/4 min-[701px]:hidden min-[1200px]:flex min-[1200px]:gap-6 min-[1200px]:px-[18px] min-[1200px]:py-[14px] min-[1200px]:text-xs max-[481px]:hidden motion-reduce:transition-none"
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/home")}
               >
                 Enter the universe
                 <Icon name="diagonal" size={16} className="text-signal max-[701px]:w-[13px]" />

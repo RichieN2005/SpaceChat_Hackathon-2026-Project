@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { authNavigationState, safeReturnTo } from "../src/lib/authNavigation.js";
+import { authNavigationState, defaultDestination, safeReturnTo } from "../src/lib/authNavigation.js";
 
 test("login destinations preserve public feed and post context", () => {
   for (const destination of ["/", "/?community=3&sort=new#compose", "/posts/42", "/posts/42?reply=9#comments"]) {
@@ -23,4 +23,15 @@ test("auth switches preserve moon history and keep direct visits distinct from f
   assert.deepEqual(authNavigationState({ fromOrbit: true, signupComplete: true }), { fromOrbit: true });
   assert.equal(authNavigationState(null), null);
   assert.equal(authNavigationState({ signupComplete: true }), null);
+});
+
+test("default entry sends guests to landing and signed-in users to their feed", () => {
+  assert.equal(defaultDestination("anonymous"), "/landing");
+  assert.equal(defaultDestination("error"), "/landing");
+  assert.equal(defaultDestination("authenticated"), "/home");
+  assert.equal(defaultDestination("loading"), null);
+});
+
+test("login can return guests to the public forum and its active filters", () => {
+  assert.equal(safeReturnTo("/home?community=3&sort=top#comments"), "/home?community=3&sort=top#comments");
 });

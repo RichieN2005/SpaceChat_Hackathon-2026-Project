@@ -30,10 +30,10 @@ function HeaderSearch() {
   useEffect(() => { setQuery(params.get("q") || ""); }, [location.search]);
   function search(event) {
     event.preventDefault();
-    const next = new URLSearchParams(location.pathname === "/" ? location.search : "");
+    const next = new URLSearchParams(location.pathname === "/home" ? location.search : "");
     const value = query.trim();
     if (value) next.set("q", value); else next.delete("q");
-    navigate(next.size ? `/?${next}` : "/");
+    navigate(next.size ? `/home?${next}` : "/home");
   }
   return <form role="search" onSubmit={search} className="order-3 flex h-11 w-full items-center gap-3 rounded-lg border border-white/12 bg-[#15161d] px-3 focus-within:border-[#91add1]/60 md:order-none md:max-w-[430px] md:flex-1">
     <SearchIcon />
@@ -53,7 +53,7 @@ export default function ForumLayout({ children }) {
   const viewingJoined = location.pathname === "/communities" && new URLSearchParams(location.search).get("view") === "joined";
   const communityRoute = location.pathname === "/communities" || location.pathname.startsWith("/communities/");
   const navigation = [
-    { path: "/", label: "Feed", active: location.pathname === "/" },
+    { path: "/home", label: "Feed", active: location.pathname === "/home" },
     { path: "/communities", label: "Communities", active: communityRoute && !viewingJoined },
     ...(status === "authenticated" ? [{ path: "/communities?view=joined", label: "Your communities", active: viewingJoined }] : []),
     { path: "/submit", label: "Create post", active: location.pathname === "/submit" },
@@ -63,7 +63,7 @@ export default function ForumLayout({ children }) {
   async function signOut() {
     if (pending) return;
     setPending(true); setError("");
-    try { await logout(); } catch (failure) { setError(failure.message); }
+    try { await logout(); navigate("/landing", { replace: true }); } catch (failure) { setError(failure.message); }
     finally { setPending(false); }
   }
   return <div className="relative isolate min-h-dvh overflow-x-clip bg-[#090a0f] text-starlight">
@@ -76,7 +76,7 @@ export default function ForumLayout({ children }) {
           if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
           event.preventDefault(); navigate("/");
         }} />
-        <NavLink to="/" end className={({ isActive }) => `hidden min-h-11 items-center px-2 text-sm font-medium sm:inline-flex ${isActive ? "text-starlight" : "text-[#a5a6b2] hover:text-starlight"}`}>Home</NavLink>
+        <NavLink to="/home" end className={({ isActive }) => `hidden min-h-11 items-center px-2 text-sm font-medium sm:inline-flex ${isActive ? "text-starlight" : "text-[#a5a6b2] hover:text-starlight"}`}>Home</NavLink>
         <HeaderSearch />
         <nav aria-label="Account" className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
           {status === "authenticated" ? <><Link to={`/users/${user.id}`} className="max-w-28 truncate px-2 py-3 text-sm text-[#bbc0ce] hover:text-white" title={user.username}>My profile</Link><button type="button" onClick={signOut} disabled={pending} className={secondaryButton}>{pending ? "Logging out…" : "Log out"}</button></> : <><Link to="/login" state={{ returnTo }} className={`${secondaryButton} text-starlight`}>Log in</Link><Link to="/signup" state={{ returnTo }} className={primaryButton}>Sign up</Link></>}

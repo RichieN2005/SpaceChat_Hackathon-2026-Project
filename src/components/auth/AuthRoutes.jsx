@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router";
 import { useAuth } from "./AuthProvider";
-import { safeReturnTo } from "../../lib/authNavigation";
+import { defaultDestination, safeReturnTo } from "../../lib/authNavigation";
 
 function SessionCheck() {
   const { status, error, refresh } = useAuth();
@@ -33,5 +33,9 @@ export function RequireAuth() {
 }
 
 export function DefaultRoute() {
-  return <Navigate to="/" replace />;
+  const { status } = useAuth();
+  const location = useLocation();
+  const destination = defaultDestination(status);
+  if (destination === null) return <SessionCheck />;
+  return <Navigate to={`${destination}${destination === "/home" ? location.search + location.hash : ""}`} replace />;
 }

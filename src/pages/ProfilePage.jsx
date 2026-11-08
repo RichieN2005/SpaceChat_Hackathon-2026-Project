@@ -101,7 +101,7 @@ function ProfileContent({ userId }) {
 
   const joinedDate = profile && Date.parse(profile.created_at);
   return <ForumLayout>
-    <Link to="/" className="mb-6 inline-flex min-h-10 items-center gap-2 text-sm text-[#aebbd0] hover:text-white"><Icon name="arrow" size={17} className="rotate-180" />Back to the feed</Link>
+    <Link to="/home" className="mb-6 inline-flex min-h-10 items-center gap-2 text-sm text-[#aebbd0] hover:text-white"><Icon name="arrow" size={17} className="rotate-180" />Back to the feed</Link>
     {loading ? <LoadingCards count={1} /> : error ? <LoadError title={error.status === 404 ? "This traveler is off the radar." : undefined} message={error.status === 404 ? "This profile may no longer exist, or the link may be incorrect." : error.message} onRetry={error.status === 404 ? undefined : () => setRetry((value) => value + 1)} /> : profile && <>
       <section className="relative isolate overflow-hidden rounded-xl border border-[#7289b5]/20 bg-[#111a2b] p-6 sm:p-9">
         <BluePlanet className="absolute -right-16 -bottom-32 -z-1 w-80 opacity-30 sm:right-2 sm:w-[420px] sm:opacity-55" />

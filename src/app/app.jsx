@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from "react-router";
+import { Route, Routes, useLocation } from "react-router";
 import LandingPage from "../pages/LandingPage";
 import LoginPage from "../pages/LoginPage";
 import SignupPage from "../pages/SignupPage";
@@ -25,7 +25,7 @@ function AppRoutes() {
   return (
     <>
     <Routes>
-      <Route path="/" element={<HomePage />} />
+      <Route path="/" element={<DefaultRoute />} />
       <Route path="/posts/:postId" element={<PostPage />} />
       <Route path="/communities" element={<CommunitiesPage />} />
       <Route path="/communities/:communityId" element={<CommunityPage />} />
@@ -35,7 +35,7 @@ function AppRoutes() {
         <Route path="/posts/:postId/edit" element={<PostEditorPage key="edit" />} />
         <Route path="/astrobot" element={<AstroBotPage />} />
       </Route>
-      <Route path="/home" element={<Navigate to="/" replace />} />
+      <Route path="/home" element={<HomePage />} />
       <Route path="/landing" element={<LandingPage returnFromSurface={returnFromSurface} />} />
       <Route path="/about" element={<LandingPage returnFromSurface={returnFromSurface} />} />
       <Route element={<GuestOnly />}>

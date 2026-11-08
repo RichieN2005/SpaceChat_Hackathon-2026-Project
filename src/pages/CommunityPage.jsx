@@ -94,7 +94,7 @@ function CommunityContent({ communityId }) {
           <h2 id="community-posts" className="text-2xl font-medium tracking-[-.6px]">Latest transmissions</h2>
           <div role="group" aria-label="Community post actions" className="flex flex-wrap items-center gap-2">
             <Link to={`/submit?community=${communityId}`} className={secondaryButton}>Create a post <Icon name="plus" size={16} /></Link>
-            <Link to={`/?community=${communityId}&sort=${sort}`} className={secondaryButton}>View all posts <Icon name="arrow" size={16} /></Link>
+            <Link to={`/home?community=${communityId}&sort=${sort}`} className={secondaryButton}>View all posts <Icon name="arrow" size={16} /></Link>
           </div>
         </div>
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">

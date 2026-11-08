@@ -34,7 +34,7 @@ test('landing renders its hero and moon without undefined merge leftovers', () =
 });
 
 test('forum shows both guest account links before session restoration completes', () => {
-  const html = render(createElement(App));
+  const html = render(createElement(App), '/home');
   const account = /<nav aria-label="Account"[^>]*>(.*?)<\/nav>/.exec(html)?.[1];
   assert.ok(account);
   assert.match(account, /href="\/login"/);
@@ -66,4 +66,10 @@ test('sample community posts open details and a working composer in the preview 
   const composer = render(createElement(ForumDialog, { community, initiallyComposing: true, onClose() {} }));
   assert.match(composer, /Give your post a title/);
   assert.match(composer, /Transmit post/);
+});
+
+test('default entry waits for session restoration before showing a feed', () => {
+  const html = render(createElement(App), '/');
+  assert.match(html, /Checking your signal/);
+  assert.doesNotMatch(html, /Your window to the universe/);
 });

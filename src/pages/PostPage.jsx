@@ -41,14 +41,14 @@ export default function PostPage() {
   async function remove() {
     if (pendingRef.current) return;
     pendingRef.current = true; setDeleting(true); setDeleteError("");
-    try { await forumApi.deletePost(postId); navigate("/", { replace: true }); }
+    try { await forumApi.deletePost(postId); navigate("/home", { replace: true }); }
     catch (failure) {
       setDeleteError(failure.message);
       if (failure.status === 401) { await refresh(); navigate("/login", { state: { returnTo: `/posts/${postId}` } }); }
     } finally { pendingRef.current = false; setDeleting(false); }
   }
   return <ForumLayout>
-    <Link to="/" className="mb-6 inline-flex min-h-10 items-center gap-2 text-sm text-[#aebbd0] hover:text-white"><Icon name="arrow" size={17} className="rotate-180" />Back to the feed</Link>
+    <Link to="/home" className="mb-6 inline-flex min-h-10 items-center gap-2 text-sm text-[#aebbd0] hover:text-white"><Icon name="arrow" size={17} className="rotate-180" />Back to the feed</Link>
     {location.state?.notice && <p role="status" className="mb-5 rounded-lg border border-[#7ea8a1]/30 bg-[#233a34]/35 p-4 text-sm text-[#bfe6d6]">{location.state.notice}</p>}
     <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_270px]">
       <div className="min-w-0 space-y-5">
