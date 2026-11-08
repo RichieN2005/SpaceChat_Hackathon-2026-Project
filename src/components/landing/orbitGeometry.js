@@ -1,9 +1,10 @@
 export function captureMoonGeometry(image, { center = false } = {}) {
+  const geometryElement = image?.closest("[data-moon-frame]") || image;
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
 
   if (image && center) {
-    const rect = image.getBoundingClientRect();
+    const rect = geometryElement.getBoundingClientRect();
     const root = document.documentElement;
     const previousBehavior = root.style.scrollBehavior;
     root.style.scrollBehavior = "auto";
@@ -14,7 +15,7 @@ export function captureMoonGeometry(image, { center = false } = {}) {
     root.style.scrollBehavior = previousBehavior;
   }
 
-  const rect = image?.getBoundingClientRect();
+  const rect = geometryElement?.getBoundingClientRect();
   const size = rect?.width && rect?.height
     ? Math.min(rect.width, rect.height)
     : Math.min(viewportWidth, viewportHeight) * .8;

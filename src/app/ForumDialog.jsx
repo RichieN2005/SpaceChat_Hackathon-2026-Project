@@ -50,20 +50,25 @@ function makePosts(community) {
   ];
 }
 
-function Post({ post, onVote, onReply }) {
-  const [commentsOpen, setCommentsOpen] = useState(false);
+function Post({ post, onVote, onReply, onCommentVote, detailsOpen, onOpen, onBack }) {
+  const [commentsOpen, setCommentsOpen] = useState(detailsOpen);
+  useEffect(() => { if (detailsOpen) setCommentsOpen(true); }, [detailsOpen]);
   const [reply, setReply] = useState("");
   const replyId = useId();
 
-  function submitReply(event) {
+  async function submitReply(event) {
     event.preventDefault();
     if (!reply.trim()) return;
-    onReply(post.id, reply.trim());
-    setReply("");
+    try { await onReply(post.id, reply.trim()); setReply(""); } catch { /* Parent displays the error. */ }
   }
 
   return (
-    <article className="border-b border-[#29272a] py-6">
+    <article className="cursor-pointer border-b border-[#29272a] py-6" onClick={(event) => {
+      if (event.target.closest('button, a, input, textarea, select, form, [data-selectable]') || window.getSelection()?.toString()) return;
+      onOpen(post.id);
+    }}>
+      <button className="sr-only focus:not-sr-only" onClick={() => { onOpen(post.id); }}>Open post: {post.title}</button>
+      {detailsOpen && <button className={`${buttonStyles} mb-4 text-sm text-signal`} onClick={onBack}>Back to community posts</button>}
       <div className="flex flex-wrap items-center gap-2 text-[12px] leading-[1.6] text-[#8e878b]">
         <span className="grid size-6 place-items-center rounded-full border border-[#51332c] bg-[#2d1c19] text-[19px] text-[#f3a18b]">{post.avatar}</span>
         <strong className="text-[13px] font-medium text-[#c5bec0]">u/{post.author}</strong>
@@ -71,18 +76,15 @@ function Post({ post, onVote, onReply }) {
         <span className="ml-auto rounded border border-[#333034] px-2 py-0.5 text-[11px] text-[#b5a8a3]">{post.tag}</span>
       </div>
       <h3 className="mt-3.5 mb-2 text-[19px] leading-[1.45] font-medium tracking-[-.25px] wrap-anywhere text-[#eee9e5] min-[601px]:text-lg">{post.title}</h3>
-      <p className="m-0 text-[15px] leading-[1.8] whitespace-pre-wrap wrap-anywhere text-[#a29b9e]">{post.body}</p>
+      <p data-selectable className="cursor-text select-text m-0 text-[15px] leading-[1.8] whitespace-pre-wrap wrap-anywhere text-[#a29b9e]">{post.body}</p>
       <div className="mt-[17px] flex items-center gap-2.5">
-        <button
-          type="button"
-          className={`${buttonStyles} min-h-8 min-w-[67px] rounded-full border px-2.5 py-[5px] text-[13px] tabular-nums hover:border-[#8b4938] hover:bg-[#332019] hover:text-[#ff9e83] ${post.voted ? "border-[#8b4938] bg-[#332019] text-[#ff9e83]" : "border-[#353033] bg-[#171416] text-[#c1b8b8]"}`}
-          aria-pressed={Boolean(post.voted)}
-          aria-label={`${post.voted ? "Remove upvote from" : "Upvote"} ${post.title}`}
-          onClick={() => onVote(post.id)}
-        >
-          <Icon name="arrow" className="size-[15px]" />
-          <span>{post.votes}</span>
-        </button>
+        {[1, -1].map((direction) => <button
+          key={direction} type="button"
+          className={`${buttonStyles} rounded-full border border-[#353033] px-3 py-2 text-sm ${post.user_vote === direction ? "text-signal" : "text-[#c1b8b8]"}`}
+          aria-pressed={post.user_vote === direction}
+          aria-label={`${direction === 1 ? "Upvote" : "Downvote"} ${post.title}`}
+          onClick={() => onVote(post.id, direction)}
+        ><span aria-hidden="true">{direction === 1 ? "\u2191" : "\u2193"}</span> {direction === 1 ? post.upvotes : post.downvotes}</button>)}
         <button
           type="button"
           className={`${buttonStyles} min-h-8 rounded-full border border-transparent bg-transparent px-[9px] py-[5px] text-[13px] text-[#aca2a5] hover:bg-[#201a1c] hover:text-[#eee6e3]`}
@@ -97,10 +99,11 @@ function Post({ post, onVote, onReply }) {
       {commentsOpen && (
         <div className="mt-[18px] border-l border-[#48302a] pt-[3px] pl-4" id={`${replyId}-comments`}>
           <div aria-live="polite">
-            {post.comments.length ? post.comments.map((comment) => (
-              <div className="mb-[17px]" key={comment.id}>
+            {post.comments.length ? [...post.comments].sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0) || new Date(b.created_at || 0) - new Date(a.created_at || 0) || String(b.id).localeCompare(String(a.id))).map((comment) => (
+              <div data-selectable className="cursor-text mb-[17px]" key={comment.id}>
                 <strong className="text-[12px] font-medium text-[#d5bbb2]">u/{comment.author}</strong>
                 <p className="mt-[5px] text-xs leading-[1.75] wrap-anywhere text-[#a99fa1]">{comment.text}</p>
+                {[1, -1].map((direction) => <button key={direction} type="button" className={`${buttonStyles} mr-3 text-xs ${comment.user_vote === direction ? "text-signal" : "text-[#aaa]"}`} aria-label={`${direction === 1 ? "Upvote" : "Downvote"} comment by ${comment.author}`} aria-pressed={comment.user_vote === direction} onClick={() => onCommentVote(post.id, comment.id, direction)}>{direction === 1 ? "\u2191" : "\u2193"} {direction === 1 ? comment.upvotes || 0 : comment.downvotes || 0}</button>)}
               </div>
             )) : <p className="mb-3.5 text-xs leading-[1.7] text-[#9e9296]">An empty frequency. Be the first to say hello.</p>}
           </div>
@@ -125,12 +128,53 @@ function Post({ post, onVote, onReply }) {
   );
 }
 
-export default function ForumDialog({ community, onClose }) {
-  const [posts, setPosts] = useState(() => makePosts(community));
-  const [composing, setComposing] = useState(false);
+export default function ForumDialog({ community, onClose, initiallyComposing = false, initialSort = "newest" }) {
+  const [posts, setPosts] = useState(() => community.apiId ? [] : makePosts(community).map((post, index) => ({ ...post, upvotes: post.votes, downvotes: 0, user_vote: 0, created_at: new Date(Date.now() - index * 60000).toISOString() })));
+  const [composing, setComposing] = useState(initiallyComposing);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [notice, setNotice] = useState("");
+  const [selectedPostId, setSelectedPostId] = useState(null);
+  const [sort, setSort] = useState(initialSort);
+  const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState(false);
+  const votesInFlight = useRef(new Set());
+
+  async function api(path, options) {
+    const response = await fetch(`/api${path}`, { credentials: "same-origin", ...options, headers: { "Content-Type": "application/json" } });
+    const data = await response.json().catch(() => ({ error: "Unable to reach the community service. Please try again." }));
+    if (!response.ok) throw new Error(data.error || "Request failed");
+    return data;
+  }
+  async function loadPosts() {
+    const rows = await api(`/posts?subreddit_id=${community.apiId}&sort=${sort}`);
+    const loaded = await Promise.all(rows.map(async (post) => ({ ...post, avatar: "*", time: new Date(post.created_at).toLocaleString(), tag: "Discussion", comments: (await api(`/posts/${post.id}/comments`)).map((comment) => ({ ...comment, text: comment.body })) })));
+    setPosts(loaded);
+  }
+  useEffect(() => {
+    if (!community.apiId) return;
+    let active = true;
+    setLoading(true);
+    (async () => {
+      try {
+        const rows = await api(`/posts?subreddit_id=${community.apiId}&sort=${sort}`);
+        const loaded = await Promise.all(rows.map(async (post) => ({ ...post, avatar: "*", time: new Date(post.created_at).toLocaleString(), tag: "Discussion", comments: (await api(`/posts/${post.id}/comments`)).map((comment) => ({ ...comment, text: comment.body })) })));
+        if (active) setPosts(loaded);
+      } catch (error) { if (active) setNotice(error.message); }
+      finally { if (active) setLoading(false); }
+    })();
+    return () => { active = false; };
+  }, [community.apiId, sort]);
+
+  const sortedPosts = [...posts].sort((a, b) => {
+    const ranking = sort === "top" ? (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes) : sort === "discussed" ? b.comments.length - a.comments.length : 0;
+    return ranking || new Date(b.created_at) - new Date(a.created_at) || String(b.id).localeCompare(String(a.id));
+  });
+  function applyVote(item, direction) {
+    const previous = item.user_vote || 0;
+    const next = previous === direction ? 0 : direction;
+    return { ...item, upvotes: (item.upvotes || 0) - Number(previous === 1) + Number(next === 1), downvotes: (item.downvotes || 0) - Number(previous === -1) + Number(next === -1), user_vote: next };
+  }
   const dialogRef = useRef(null);
   const closeRef = useRef(null);
   const composeRef = useRef(null);
@@ -152,7 +196,7 @@ export default function ForumDialog({ community, onClose }) {
         onCloseRef.current();
       }
       if (event.key !== "Tab") return;
-      const elements = [...dialogRef.current.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex="0"]')]
+      const elements = [...dialogRef.current.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex="0"]')]
         .filter((element) => element.getClientRects().length);
       const first = elements[0];
       const last = elements[elements.length - 1];
@@ -175,30 +219,56 @@ export default function ForumDialog({ community, onClose }) {
     };
   }, []);
 
-  function vote(id) {
-    setPosts((current) => current.map((post) => post.id === id
-      ? { ...post, votes: post.votes + (post.voted ? -1 : 1), voted: !post.voted }
-      : post));
+  async function vote(id, direction) {
+    const key = `post-${id}`;
+    if (votesInFlight.current.has(key)) return;
+    votesInFlight.current.add(key);
+    const post = posts.find((post) => post.id === id);
+    try {
+      const updated = community.apiId ? await api(`/posts/${id}/vote`, { method: "PUT", body: JSON.stringify({ value: post.user_vote === direction ? 0 : direction }) }) : applyVote(post, direction);
+      setPosts((current) => current.map((item) => item.id === id ? { ...item, ...updated } : item));
+    } catch (error) { setNotice(error.message); } finally { votesInFlight.current.delete(key); }
+  }
+  async function commentVote(postId, id, direction) {
+    const key = `comment-${id}`;
+    if (votesInFlight.current.has(key)) return;
+    votesInFlight.current.add(key);
+    const comment = posts.find((post) => post.id === postId).comments.find((comment) => comment.id === id);
+    try {
+      const updated = community.apiId ? await api(`/comments/${id}/vote`, { method: "PUT", body: JSON.stringify({ value: comment.user_vote === direction ? 0 : direction }) }) : applyVote(comment, direction);
+      setPosts((current) => current.map((post) => post.id === postId ? { ...post, comments: post.comments.map((item) => item.id === id ? { ...item, ...updated } : item) } : post));
+    } catch (error) { setNotice(error.message); } finally { votesInFlight.current.delete(key); }
+  }
+  async function reply(id, text) {
+    try {
+      if (community.apiId) {
+        await api(`/posts/${id}/comments`, { method: "POST", body: JSON.stringify({ body: text }) });
+        await loadPosts();
+      } else setPosts((current) => current.map((post) => post.id === id
+        ? { ...post, comments: [...post.comments, { id: crypto.randomUUID(), author: "you_from_earth", text, created_at: new Date().toISOString(), upvotes: 0 }] }
+        : post));
+    } catch (error) { setNotice(error.message); throw error; }
   }
 
-  function reply(id, text) {
-    setPosts((current) => current.map((post) => post.id === id
-      ? { ...post, comments: [...post.comments, { id: crypto.randomUUID(), author: "you_from_earth", text }] }
-      : post));
-  }
-
-  function submitPost(event) {
+  async function submitPost(event) {
     event.preventDefault();
     if (!title.trim() || !body.trim()) return;
-    setPosts((current) => [{
+    if (pending) return;
+    setPending(true);
+    try {
+    if (community.apiId) {
+      await api("/posts", { method: "POST", body: JSON.stringify({ subreddit_id: community.apiId, title: title.trim(), body: body.trim() }) });
+      await loadPosts();
+    } else setPosts((current) => [{
       id: crypto.randomUUID(), author: "you_from_earth", avatar: "✦", time: "just transmitted", tag: "Discussion",
-      title: title.trim(), body: body.trim(), votes: 1, voted: true, comments: [],
+      title: title.trim(), body: body.trim(), upvotes: 0, downvotes: 0, user_vote: 0, created_at: new Date().toISOString(), comments: [],
     }, ...current]);
     setTitle("");
     setBody("");
     setComposing(false);
-    setNotice("Transmission received. Your post is at the top of this preview.");
+    setNotice("Post created in this community.");
     composeRef.current?.focus();
+    } catch (error) { setNotice(error.message); } finally { setPending(false); }
   }
 
   return (
@@ -227,11 +297,11 @@ export default function ForumDialog({ community, onClose }) {
           </button>
         </header>
 
-        <div className="overflow-y-auto overscroll-contain px-[17px] pt-[19px] [scrollbar-color:#4d4141_#0c0c0e] [scrollbar-width:thin] min-[601px]:px-7 min-[601px]:pt-[23px]">
+        <div className="min-h-0 overflow-y-auto overscroll-contain px-[17px] pt-[19px] [scrollbar-color:#4d4141_#0c0c0e] [scrollbar-width:thin] min-[601px]:px-7 min-[601px]:pt-[23px]">
           <p className="mb-[15px] text-[15px] leading-[1.7] text-[#b6b0b2] min-[601px]:text-sm" id={`${headingId}-description`}>{community.description}</p>
           <div className="flex flex-wrap items-center gap-[7px] font-mono text-[11px] leading-[1.6] tracking-[.25px] text-[#aca1a0] min-[601px]:flex-nowrap min-[601px]:text-[12px]">
             <span className="size-[5px] rounded-full bg-signal" aria-hidden="true" />
-            INTERACTIVE PREVIEW <span aria-hidden="true">·</span> posts stay in this session
+            {community.apiId ? "COMMUNITY POSTS" : "INTERACTIVE PREVIEW - posts stay in this session"}
           </div>
           <div className="mt-[25px] flex flex-wrap items-center justify-between gap-2 border-y border-[#29272a] py-4 min-[601px]:flex-nowrap min-[601px]:gap-3.5">
             <span className="flex items-center gap-[7px] text-[12px] text-[#ccc5c3] min-[601px]:text-xs">
@@ -246,7 +316,7 @@ export default function ForumDialog({ community, onClose }) {
               aria-controls={`${headingId}-compose`}
             >
               <Icon name={composing ? "close" : "plus"} />
-              {composing ? "Cancel" : "Start a conversation"}
+              {composing ? "Cancel" : "Create a post"}
             </button>
           </div>
 
@@ -257,13 +327,18 @@ export default function ForumDialog({ community, onClose }) {
               <label className="sr-only" htmlFor={bodyId}>Post text</label>
               <textarea className={`${inputStyles} min-h-[85px] max-h-60 resize-y`} id={bodyId} placeholder="What’s on your mind, traveler?" value={body} onChange={(event) => setBody(event.target.value)} maxLength={2000} rows={3} required />
               <div className="flex items-center justify-between gap-3">
-                <span className="min-w-0 max-w-[120px] text-[12px] leading-[1.6] wrap-anywhere text-[#a49497] min-[601px]:max-w-none">Posting as u/you_from_earth</span>
-                <button className={submitStyles} type="submit" disabled={!title.trim() || !body.trim()}>Transmit post <span aria-hidden="true">↗</span></button>
+                <span className="min-w-0 max-w-[120px] text-[12px] leading-[1.6] wrap-anywhere text-[#a49497] min-[601px]:max-w-none">{community.apiId ? "Posting to this community" : "Posting as u/you_from_earth"}</span>
+                <button className={submitStyles} type="submit" disabled={pending || !title.trim() || !body.trim()}>Transmit post <span aria-hidden="true">↗</span></button>
               </div>
             </form>
           )}
-          <p className="sr-only" role="status">{notice}</p>
-          <div>{posts.map((post) => <Post key={post.id} post={post} onVote={vote} onReply={reply} />)}</div>
+          {!selectedPostId && <label className="my-4 flex items-center gap-3 text-sm">Sort posts
+            <select value={sort} onChange={(event) => setSort(event.target.value)} className={inputStyles}>
+              <option value="newest">Newest</option><option value="top">Top Voted Post</option><option value="discussed">Most Discussed</option>
+            </select>
+          </label>}
+          <p className="my-3 text-sm text-[#ffac98]" role="status">{notice}</p>
+          {loading ? <p role="status">Loading posts...</p> : <div>{sortedPosts.filter((post) => selectedPostId === null || post.id === selectedPostId).map((post) => <Post key={post.id} post={post} onVote={vote} onReply={reply} onCommentVote={commentVote} detailsOpen={selectedPostId === post.id} onOpen={setSelectedPostId} onBack={() => setSelectedPostId(null)} />)}</div>}
           <footer className="flex items-center justify-center gap-[9px] py-[22px] font-mono text-[12px] tracking-[.5px] text-[#9c8e90]">
             <Icon name="orbit" className="size-[18px] text-[#d48068]" />Different planets. Same curiosity.
           </footer>

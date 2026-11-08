@@ -285,7 +285,7 @@ The intended responsibilities are:
 
 Use parameterized SQL when handling user input; never concatenate raw input into SQL statements. In production, think about connection management, timeouts, and database access permissions as the API grows.
 
-There is no database schema or migration tooling in the supplied ZIP yet. Add and document schema setup/migration steps when the team chooses an approach.
+The base database schema is managed separately. The vote tables are supplied in `migrations/001_votes.sql`; see the community votes setup instructions below.
 
 ## Deployment direction: Vultr (planned)
 
@@ -354,19 +354,22 @@ Check the server-side connection URL, network access rules, database credentials
 
 **Documentation scope:** This README describes the code and configuration present in the uploaded project snapshot and clearly identifies proposed future behavior. Update it as features and deployment steps become real.
 
-### AstroBot module organization
 
-`app.py` registers the `ai_bp` Blueprint from `api/aiService/routes.py`.
-The Blueprint keeps `POST /api/ai/chat` authenticated via the shared
-`login_required` decorator, validates JSON and a 2,000-character message
-limit, and preserves the frontend's `{ "sender": "AstroBot", "response": "..." }`
-response contract. `api/aiService/ai_service.py` handles Gemini generation,
-uses the existing `gemini-2.5-flash` default (or `GEMINI_MODEL` if configured),
-and maps provider failures to safe public error codes. Missing Gemini credentials
-must not prevent Render health routes or other API routes from starting.
+## Community votes and sorting
 
-Do not register the experimental `api/chat.py` from the older AI work copy:
-it exposes `/api/chat` without an authentication check. The feature copy's
-`.env`, `.git`, `.venv`, and local caches were intentionally excluded from this
-merge; set secrets only through Render's environment configuration or a local
-ignored `.env`.
+Apply `migrations/001_votes.sql` to the existing PostgreSQL database before running
+this version (for example, `psql "$DATABASE_URL" -f migrations/001_votes.sql`).
+It adds one vote per user per post/comment, with cascading cleanup and values
+restricted to up or down. Applying the migration again is safe.
+
+`PUT /api/posts/:id/vote` and `PUT /api/comments/:id/vote` require login and accept
+`{"value": 1}`, `{"value": -1}`, or `{"value": 0}` to clear a vote. Responses include
+separate `upvotes`, `downvotes`, net `score`, and `user_vote`.
+`GET /api/posts?subreddit_id=ID&sort=newest|top|discussed` sorts by creation time,
+net vote score, or comment count, with newest first for ties. Comments sort by
+upvotes descending, then creation time descending.
+
+The landing community list loads from `/api/subreddits`; if no communities are
+available, labeled session-only previews remain available. Real communities use
+the API for posts, replies, and votes. Run API regression checks with
+`.venv/Scripts/python.exe -m unittest discover -s tests`.
