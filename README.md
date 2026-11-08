@@ -62,7 +62,7 @@ The existing users, subreddits, posts, and comments tables were confirmed by a r
 
 Run `npm test` for frontend client/navigation tests, `npm run test:auth` for the auth subset, and `.venv/bin/python -m unittest discover -s tests -v` for backend tests. These checks use isolated mocks and never access the project database.
 
-For AstroBot troubleshooting, check the backend's Render Environment for `GEMINI_API_KEY` or `GOOGLE_API_KEY` (the SDK gives `GOOGLE_API_KEY` precedence when both exist). Optional `GEMINI_MODEL` selects the model; its default is `gemini-2.5-flash`. After a failed request, Render logs record an `AstroBot` line with a safe upstream HTTP code/category: authentication, permission, model/resource, quota/rate limit, or provider availability. Keys, prompts, and raw provider exceptions are not logged. The UI retains a generic service error. A successful model metadata lookup does not verify generation quota or a different deployment's environment.
+For AstroBot troubleshooting, check the backend's Render Environment for `GEMINI_API_KEY` or `GOOGLE_API_KEY` (the application gives `GEMINI_API_KEY` precedence when both exist). Optional `GEMINI_MODEL` selects the model; its default is `gemini-3.1-flash-lite`. After a failed request, Render logs record an `AstroBot` line with a safe upstream HTTP code/category: authentication, permission, model/resource, quota/rate limit, or provider availability. Keys, prompts, and raw provider exceptions are not logged. The UI distinguishes quota limits, unavailable models, timeouts, and server failures. A successful model metadata lookup does not verify generation quota or a different deployment's environment.
 
 ## Historical scaffold notes
 
@@ -390,7 +390,7 @@ Before starting the updated backend:
 2. Apply `migrations/001_votes.sql` if not already applied, then
    `migrations/20261108_astrobot.sql` to the existing database.
 3. Configure backend-only `GEMINI_API_KEY` (or `GOOGLE_API_KEY`), `DATABASE_URL`,
-   and `SECRET_KEY`. `GEMINI_MODEL` defaults to `gemini-3.8-flash`.
+   and `SECRET_KEY`. `GEMINI_MODEL` defaults to `gemini-3.1-flash-lite`.
 
 Optional backend settings: `ASTROBOT_CHAT_LIMIT_15M=10`,
 `ASTROBOT_CHAT_LIMIT_DAILY=250`, `ASTROBOT_MENTION_LIMIT_15M=8`,
@@ -429,7 +429,7 @@ and schema checks. Add `--models` to list models available to the configured key
 `--probe` sends one small, real generation request and may consume provider quota.
 The helper redacts configured secrets from diagnostics.
 
-The default model is `gemini-3.8-flash`; override it with backend `GEMINI_MODEL`.
+The default model is `gemini-3.1-flash-lite`; override it with backend `GEMINI_MODEL`.
 Direct chat and public mentions share the same bounded Gemini client. Automatic
 provider retries are disabled. Responses distinguish daily AI quota exhaustion,
 short-term rate/usage limits, unavailable models, incorrect configuration,
@@ -458,3 +458,23 @@ text on failure, and retain backend quota/error categories and retry times. A
 non-JSON hosting/proxy error is described as a server failure instead of being
 mistaken for an invalid key or a confirmed exhausted quota. Deploy the updated
 frontend to activate this handling on the hosted site.
+
+
+### Render model update for AstroBot
+
+The default is now `gemini-3.1-flash-lite`, verified with a real successful generation
+request during troubleshooting. On the Render Flask service, set:
+
+```text
+GEMINI_MODEL=gemini-3.1-flash-lite
+```
+
+Choose **Save and deploy** (or rebuild and deploy when also deploying code changes).
+An existing `GEMINI_MODEL=gemini-3.8-flash` setting overrides the code default and must
+be changed explicitly. Keep `GEMINI_API_KEY` on Render; no frontend key is needed.
+Model quotas depend on the configured Google project, so a successful local test
+establishes that these local credentials work, not that every deployed project has
+an available allowance. The app does not automatically cycle models on quota errors.
+The diagnostic and runtime now share the same model configuration; to test a
+particular model without changing the environment, use
+`python scripts/check_astrobot.py --model gemini-3.1-flash-lite --probe`.

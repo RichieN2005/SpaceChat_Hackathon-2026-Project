@@ -194,6 +194,20 @@ class AstroBotRoutesTest(unittest.TestCase):
         self.assertEqual(response.json["code"], "ai_timeout")
         self.assertIn("too long", response.json["error"])
 
+    def test_default_uses_verified_flash_lite_model(self):
+        self.login()
+        with patch.dict("os.environ", {"GEMINI_MODEL": ""}):
+            response = self.client.post("/api/ai/chat", json={"message": "Hello"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.provider.models.generate_content.call_args.kwargs["model"], "gemini-3.1-flash-lite")
+
+    def test_blank_or_padded_model_setting_is_normalized(self):
+        from api.aiService.config import get_model
+        with patch.dict("os.environ", {"GEMINI_MODEL": "   "}):
+            self.assertEqual(get_model(), "gemini-3.1-flash-lite")
+        with patch.dict("os.environ", {"GEMINI_MODEL": " custom-model "}):
+            self.assertEqual(get_model(), "custom-model")
+
     def test_model_can_be_selected_without_changing_code(self):
         self.login()
         with patch.dict("os.environ", {"GEMINI_MODEL": "configured-test-model"}):

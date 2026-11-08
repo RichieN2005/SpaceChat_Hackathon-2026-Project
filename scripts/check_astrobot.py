@@ -3,19 +3,25 @@ import argparse
 import json
 import os
 import re
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 import psycopg
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from api.aiService.config import get_model
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--probe", action="store_true")
     parser.add_argument("--models", action="store_true", help="List Gemini model names available to this API key")
+    parser.add_argument("--model", help="Check a specific model without changing environment variables")
     args = parser.parse_args()
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
-    report = {"credentials": bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))}
+    model = (args.model or "").strip() or get_model()
+    report = {"credentials": bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")), "model": model}
     try:
         with psycopg.connect(os.getenv("DATABASE_URL"), connect_timeout=5) as conn:
             with conn.cursor() as cursor:
@@ -41,7 +47,7 @@ def main():
                 if not args.probe:
                     print(json.dumps(report, indent=2))
                     return
-                result = client.models.generate_content(model=os.getenv("GEMINI_MODEL", "gemini-3.8-flash"), contents="Reply with OK.", config=types.GenerateContentConfig(max_output_tokens=1024, thinking_config=types.ThinkingConfig(thinking_level="low")))
+                result = client.models.generate_content(model=model, contents="Reply with OK.", config=types.GenerateContentConfig(max_output_tokens=1024, thinking_config=types.ThinkingConfig(thinking_level="low") if model.removeprefix("models/").startswith("gemini-3") else None))
                 report["provider_answered"] = bool(result.text and result.text.strip())
                 report["finish_reason"] = str(result.candidates[0].finish_reason) if result.candidates else None
         except Exception as error:

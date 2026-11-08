@@ -11,6 +11,7 @@ import re
 from functools import lru_cache
 
 from flask import current_app
+from api.aiService.config import get_model
 from google import genai
 from google.genai import errors, types
 try:
@@ -60,7 +61,7 @@ def ask_space_bot(user_message: str, *, context: str = "", system_instruction: s
         "while maintaining this immersive persona."
     )
 
-    model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip() or "gemini-3.8-flash"
+    model = get_model()
     try:
         response = get_ai_client().models.generate_content(
             model=model,
