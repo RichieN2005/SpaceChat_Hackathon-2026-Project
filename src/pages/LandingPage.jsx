@@ -2,6 +2,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useAuth } from "../components/auth/AuthProvider";
 import AuthButtons from "../components/landing/AuthButtons";
+import ForumDialog from "../app/ForumDialog";
+import CommunityPosts from "../components/landing/CommunityPosts";
+import { forumApi } from "../lib/forum";
 import PopularCommunities from "../components/landing/PopularCommunities";
 import PlanetTransition from "../components/landing/PlanetTransition";
 import { captureMoonGeometry } from "../components/landing/orbitGeometry";
@@ -115,12 +118,13 @@ export default function LandingPage({ returnFromSurface = null }) {
   const moonImageRef = useRef(null);
   const departingRef = useRef(false);
   const [communities, setCommunities] = useState(previewCommunities);
+  const [preview, setPreview] = useState(null);
   const [postSort, setPostSort] = useState("newest");
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/api/subreddits", { signal: controller.signal }).then((response) => response.ok ? response.json() : []).then((rows) => {
-      if (rows.length) setCommunities(rows.map((row, index) => ({ id: String(row.id), apiId: row.id, title: row.name, handle: `s/${row.name}`, description: row.description, color: previewCommunities[index % 3].color, planet: previewCommunities[index % 3].planet, posts: [] })));
-    }).catch(() => {});
+    forumApi.communities(controller.signal).then((rows) => {
+      if (!controller.signal.aborted && rows.length) setCommunities(rows.map((row, index) => ({ id: String(row.id), apiId: row.id, title: row.name, handle: `s/${row.name}`, description: row.description, color: previewCommunities[index % 3].color, planet: previewCommunities[index % 3].planet })));
+    }).catch(() => { /* Keep the interactive sample communities available offline. */ });
     return () => controller.abort();
   }, []);
   const [activeCommunity, setActiveCommunity] = useState(0);
@@ -145,9 +149,11 @@ export default function LandingPage({ returnFromSurface = null }) {
     return () => window.removeEventListener("keydown", handleKey);
   }, [menuOpen]);
 
-  function openUniverse(item = community, compose = false) {
+  function openUniverse(item = community, compose = false, postId = null) {
     setMenuOpen(false);
-    if (compose) {
+    if (!item.apiId) {
+      setPreview({ community: item, composing: compose, postId });
+    } else if (compose) {
       navigate(item.apiId ? `/submit?community=${item.apiId}` : "/submit");
     } else {
       navigate(item.apiId ? `/communities/${item.apiId}` : "/");
@@ -246,7 +252,7 @@ export default function LandingPage({ returnFromSurface = null }) {
               <button
                 type="button"
                 className="flex items-center gap-[9px] rounded-[3px] border border-[#4a4140] bg-transparent p-[11px] text-[12px] whitespace-nowrap transition-colors hover:border-signal hover:bg-signal/4 min-[701px]:hidden min-[1200px]:flex min-[1200px]:gap-6 min-[1200px]:px-[18px] min-[1200px]:py-[14px] min-[1200px]:text-xs max-[481px]:hidden motion-reduce:transition-none"
-                onClick={() => openUniverse()}
+                onClick={() => navigate("/")}
               >
                 Enter the universe
                 <Icon name="diagonal" size={16} className="text-signal max-[701px]:w-[13px]" />
@@ -290,7 +296,7 @@ export default function LandingPage({ returnFromSurface = null }) {
               <div className="relative z-4 flex flex-wrap items-center gap-[21px] min-[701px]:flex-nowrap min-[701px]:gap-[17px] min-[961px]:gap-5 min-[1200px]:gap-[27px] max-[371px]:gap-[15px]">
                 <button
                   className={`${coralButton} max-[961px]:min-h-[50px] max-[961px]:gap-6 max-[961px]:px-[19px] max-[961px]:py-4 max-[961px]:text-xs`}
-                  onClick={() => openUniverse(communities[1] || communities[0])}
+                  onClick={() => document.getElementById("universe")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" })}
                 >
                   Find your orbit <Icon name="diagonal" size={19} />
                 </button>
@@ -407,37 +413,30 @@ export default function LandingPage({ returnFromSurface = null }) {
                 </div>
                 <button className={`${coralButton} mb-4`} onClick={() => openUniverse(community, true)}>Create a post</button>
                 <label className="mb-4 flex items-center gap-3 text-sm">Sort community posts
-                  <select value={postSort} onChange={(event) => { setPostSort(event.target.value); openUniverse(community); }} className="rounded border border-[#45383f] bg-[#171417] p-2">
+                  <select value={postSort} onChange={(event) => { setPostSort(event.target.value); }} className="rounded border border-[#45383f] bg-[#171417] p-2">
                     <option value="newest">Newest</option><option value="top">Top Voted Post</option><option value="discussed">Most Discussed</option>
                   </select>
                 </label>
-                {community.posts.map((post, index) => {
+                {community.apiId ? <CommunityPosts key={community.id} communityId={community.apiId} sort={postSort} /> : community.posts.map((post, index) => ({ post, index })).sort((a, b) => postSort === "top"
+                  ? ([42, 28][b.index] + (votes[`${community.id}-${b.index}`] || 0)) - ([42, 28][a.index] + (votes[`${community.id}-${a.index}`] || 0))
+                  : a.index - b.index).map(({ post, index }) => {
                   const key = `${community.id}-${index}`;
-                  return (
-                    <div key={key} onClick={(event) => { if (!event.target.closest('button, a, input, select, textarea, [data-selectable]') && !window.getSelection()?.toString()) openUniverse(community); }} className="cursor-pointer flex items-start gap-3 border-t border-[#292629] py-[18px] min-[701px]:gap-[17px] min-[701px]:py-[19px]">
-                      <button
-                        aria-label={`${votes[key] === 1 ? "Remove upvote from" : "Upvote"} ${post}`}
-                        aria-pressed={votes[key] === 1}
-                        onClick={() => setVotes((previous) => ({ ...previous, [key]: previous[key] === 1 ? 0 : 1 }))}
-                        className={`flex min-w-[29px] flex-col items-center gap-1 rounded-[3px] border px-[5px] py-2 font-mono text-[11px] transition-colors hover:border-signal/45 hover:bg-signal/4 hover:text-signal min-[701px]:min-w-8 min-[701px]:px-1.5 min-[701px]:text-[12px] motion-reduce:transition-none ${votes[key] === 1 ? "border-signal/45 bg-signal/4 text-signal" : "border-[#45383f] bg-transparent text-[#b0a3ab]"}`}
-                      >
-                        <Icon name="up" size={16} />
-                        <span>{[42, 28][index] + (votes[key] === 1 ? 1 : 0)}</span>
-                      </button>
-                      <button type="button" aria-label={`Downvote ${post}`} aria-pressed={votes[key] === -1} onClick={() => setVotes((previous) => ({ ...previous, [key]: previous[key] === -1 ? 0 : -1 }))} className={`rounded border border-[#45383f] px-2 py-2 text-xs ${votes[key] === -1 ? "text-signal" : "text-[#b0a3ab]"}`}><Icon name="down" size={16} />{votes[key] === -1 ? 1 : 0}</button>
-                      <div className="min-w-0">
-                        <p className="mb-[9px] flex flex-wrap items-center gap-[5px] font-mono text-[9px] text-[#a395a0] min-[701px]:gap-1.5 min-[961px]:text-[10px] max-[371px]:text-[8px]">
-                          <span aria-hidden="true" className={`inline-grid size-[15px] place-items-center rounded-full font-sans text-[13px] min-[701px]:size-4 min-[701px]:text-xs ${index === 0 ? "bg-[#465a5080] text-[#c3d4b6]" : "bg-[#59496680] text-[#bcb0cf]"}`}>{index === 0 ? "◡" : "✧"}</span>
-                          {index === 0 ? "u/definitely_not_an_alien" : "u/cosmic_overthinker"}
-                          <span className="text-[#95868f]">· {index === 0 ? "2h" : "4h"}</span>
-                        </p>
-                        <button onClick={() => openUniverse(community)} className="block bg-transparent p-0 text-left text-xs font-medium leading-[1.65] text-[#ddd3d8] hover:text-white min-[701px]:leading-[1.6] min-[961px]:text-[15px]">{post}</button>
-                        <button onClick={() => openUniverse(community)} className="flex min-h-[30px] items-center gap-1.5 bg-transparent pt-2.5 text-[11px] text-[#a0909b] hover:text-signal">
-                          <Icon name="chat" size={13} /> Join the conversation <Icon name="arrow" size={13} className="ml-[5px]" />
-                        </button>
-                      </div>
+                  const openPost = () => openUniverse(community, false, index === 0 ? "first" : "second");
+                  return <article key={key} className="cursor-pointer border-t border-[#292629] py-5" onClick={(event) => {
+                    if (!event.target.closest("a, button, input, select, textarea") && !window.getSelection()?.toString()) openPost();
+                  }}>
+                    <p className="mb-2 font-mono text-[11px] text-[#a395a0]">{index === 0 ? "u/cosmic_crouton" : "u/slightly_alien"} / {index === 0 ? "2h" : "4h"}</p>
+                    <h4><button type="button" onClick={openPost} className="text-left text-[16px] font-medium leading-relaxed text-[#ddd3d8] hover:text-white">{post}</button></h4>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {[1, -1].map((direction) => <button key={direction} type="button" aria-label={`${direction === 1 ? "Upvote" : "Downvote"} ${post}`} aria-pressed={votes[key] === direction}
+                        onClick={() => setVotes((previous) => ({ ...previous, [key]: previous[key] === direction ? 0 : direction }))}
+                        className={`inline-flex min-h-9 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs ${votes[key] === direction ? "border-signal/35 bg-signal/10 text-[#ffb49f]" : "border-white/10 bg-white/4 text-[#b5bdcd] hover:bg-white/8"}`}>
+                        <Icon name={direction === 1 ? "up" : "down"} size={15} />{direction === 1 ? "Upvote" : "Downvote"}
+                        <span className="font-mono text-[11px]">{direction === 1 ? [42, 28][index] + Number(votes[key] === 1) : Number(votes[key] === -1)}</span>
+                      </button>)}
+                      <button type="button" onClick={openPost} className="inline-flex min-h-9 items-center gap-1.5 px-1 text-xs text-[#a99ba3] hover:text-starlight"><Icon name="chat" size={14} />Join the conversation</button>
                     </div>
-                  );
+                  </article>;
                 })}
                 <button onClick={() => openUniverse(community)} className="flex w-full items-center justify-between border-t border-[#292629] bg-transparent py-[19px] text-xs text-[#d6c8c3] hover:text-signal min-[701px]:py-5">
                   Explore this space <Icon name="arrow" size={18} className="text-signal" />
@@ -500,6 +499,7 @@ export default function LandingPage({ returnFromSurface = null }) {
       </div>
 
       {departure && <PlanetTransition departure={departure} onComplete={finishAuthTransition} />}
+      {preview && <ForumDialog key={preview.community.id} community={preview.community} initiallyComposing={preview.composing} initialSort={postSort} initialPostId={preview.postId} onClose={() => setPreview(null)} />}
 
 
     </>

@@ -132,13 +132,13 @@ function Post({ post, onVote, onReply, onCommentVote, detailsOpen, onOpen, onBac
   );
 }
 
-export default function ForumDialog({ community, onClose, initiallyComposing = false, initialSort = "newest" }) {
-  const [posts, setPosts] = useState(() => community.apiId ? [] : makePosts(community).map((post, index) => ({ ...post, upvotes: post.votes, downvotes: 0, user_vote: 0, created_at: new Date(Date.now() - index * 60000).toISOString() })));
+export default function ForumDialog({ community, onClose, initiallyComposing = false, initialSort = "newest", initialPostId = null }) {
+  const [posts, setPosts] = useState(() => community.apiId ? [] : makePosts(community).map((post, index) => ({ ...post, title: community.posts?.[index] || post.title, upvotes: post.votes, downvotes: 0, user_vote: 0, created_at: new Date(Date.now() - index * 60000).toISOString() })));
   const [composing, setComposing] = useState(initiallyComposing);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [notice, setNotice] = useState("");
-  const [selectedPostId, setSelectedPostId] = useState(null);
+  const [selectedPostId, setSelectedPostId] = useState(initialPostId);
   const [sort, setSort] = useState(initialSort);
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(false);

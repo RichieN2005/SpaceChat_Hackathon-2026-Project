@@ -9,11 +9,15 @@ let server;
 let App;
 let AuthProvider;
 let VoteButtons;
+let MoonScene;
+let ForumDialog;
 before(async () => {
   server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
   App = (await server.ssrLoadModule('/src/app/app.jsx')).default;
   AuthProvider = (await server.ssrLoadModule('/src/components/auth/AuthProvider.jsx')).AuthProvider;
   VoteButtons = (await server.ssrLoadModule('/src/components/forum/VoteButtons.jsx')).default;
+  MoonScene = (await server.ssrLoadModule('/src/components/landing/visuals.jsx')).MoonScene;
+  ForumDialog = (await server.ssrLoadModule('/src/app/ForumDialog.jsx')).default;
 });
 after(async () => { await server?.close(); });
 
@@ -44,4 +48,22 @@ test('vote directions have visible labels and separate totals', () => {
   assert.match(html, /12 upvotes/);
   assert.match(html, /3 downvotes/);
   assert.equal((html.match(/aria-pressed="false"/g) || []).length, 2);
+});
+
+test('moon rotation wrapper remains separate from its entrance animation', () => {
+  const html = render(createElement(MoonScene, { showAuth: false }));
+  assert.match(html, /data-moon-spin/);
+  assert.match(html, /Click or drag/);
+  assert.doesNotMatch(html, /LAND ON THE MOON/);
+});
+
+test('sample community posts open details and a working composer in the preview dialog', () => {
+  const community = { id: 'earthlings', title: 'Earth', handle: 's/earthlings', posts: ['A sample transmission'] };
+  const detail = render(createElement(ForumDialog, { community, initialPostId: 'first', onClose() {} }));
+  assert.match(detail, /A sample transmission/);
+  assert.match(detail, /Back to community posts/);
+  assert.match(detail, /Reply to A sample transmission/);
+  const composer = render(createElement(ForumDialog, { community, initiallyComposing: true, onClose() {} }));
+  assert.match(composer, /Give your post a title/);
+  assert.match(composer, /Transmit post/);
 });

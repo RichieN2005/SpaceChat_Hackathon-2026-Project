@@ -140,13 +140,13 @@ function MoonAuthButton({ mode, label, subtitle, onAuthNavigate, isDeparting, cl
 
 export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipEntrance = false, showAuth = true }) {
   const spinRef = useRef(null);
-  const motion = useRef({ angle: 0, direction: 1, dragging: false });
+  const motion = useRef({ angle: 0, direction: 1, dragging: false, pointerAngle: null });
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     let frame, previous;
     function animate(time) {
       const state = motion.current;
-      if (previous && !reduced.matches && !isDeparting) state.angle += Math.min(time - previous, 50) * .003 * state.direction;
+      if (previous && !reduced.matches && !isDeparting && !state.dragging) state.angle += Math.min(time - previous, 50) * .003 * state.direction;
       previous = time;
       if (spinRef.current) spinRef.current.style.transform = `rotate(${state.angle}deg)`;
       frame = requestAnimationFrame(animate);
@@ -154,9 +154,22 @@ export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipE
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
   }, [isDeparting]);
-  function steer(event) {
+  function steer(event, start = false) {
+    if (isDeparting) return;
     const bounds = event.currentTarget.getBoundingClientRect();
-    motion.current.direction = event.clientX < bounds.left + bounds.width / 2 ? -1 : 1;
+    const x = event.clientX - bounds.left - bounds.width / 2;
+    const y = event.clientY - bounds.top - bounds.height / 2;
+    const pointerAngle = Math.atan2(y, x) * 180 / Math.PI;
+    const state = motion.current;
+    if (start) {
+      state.direction = x < 0 ? -1 : 1;
+      state.angle += 12 * state.direction;
+    } else if (state.pointerAngle !== null) {
+      const delta = ((pointerAngle - state.pointerAngle + 540) % 360) - 180;
+      state.angle += delta;
+      if (Math.abs(delta) > .1) state.direction = Math.sign(delta);
+    }
+    state.pointerAngle = pointerAngle;
   }
   return (
     <div
@@ -165,9 +178,10 @@ export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipE
       <div aria-hidden="true" className="absolute inset-[14%] rounded-full bg-[#b22c131a] blur-[58px]" />
       <div aria-hidden="true" className="absolute left-[4%] top-[36%] z-0 h-[35%] w-[93%] -rotate-34 rounded-full border border-[#a5837133] max-[701px]:left-[4.5%] max-[701px]:top-[37%] max-[701px]:h-[28%] max-[701px]:w-[91%]" />
       <div aria-hidden="true" className="absolute left-[9%] top-[5%] z-0 h-[87%] w-[83%] -rotate-25 rounded-full border border-[#a5837116] max-[701px]:left-[4.5%] max-[701px]:top-[7%] max-[701px]:h-[84%] max-[701px]:w-[91%]" />
-      <div data-moon-frame className="pointer-events-auto absolute inset-0 z-1 cursor-grab touch-none rounded-full focus-visible:outline-2 focus-visible:outline-signal" role="button" tabIndex={0} aria-label="Rotate moon. Click or drag left or right to steer; arrow keys change direction." onPointerDown={(event) => { if (isDeparting) return; motion.current.dragging = true; event.currentTarget.setPointerCapture(event.pointerId); steer(event); }} onPointerMove={(event) => { if (motion.current.dragging) steer(event); }} onPointerUp={() => { motion.current.dragging = false; }} onPointerCancel={() => { motion.current.dragging = false; }} onKeyDown={(event) => { if (["ArrowLeft", "ArrowRight", "Enter", " "].includes(event.key)) { event.preventDefault(); motion.current.direction = event.key === "ArrowLeft" ? -1 : 1; motion.current.angle += motion.current.direction * 5; } }}>
+      <div data-moon-frame className="pointer-events-auto absolute inset-0 z-1 cursor-grab touch-none rounded-full focus-visible:outline-2 focus-visible:outline-signal" role="button" tabIndex={0} aria-label="Rotate moon. Click or drag left or right to steer; arrow keys change direction." onPointerDown={(event) => { if (isDeparting) return; motion.current.dragging = true; event.currentTarget.setPointerCapture(event.pointerId); steer(event, true); }} onPointerMove={(event) => { if (motion.current.dragging) steer(event); }} onPointerUp={() => { motion.current.dragging = false; motion.current.pointerAngle = null; }} onPointerCancel={() => { motion.current.dragging = false; motion.current.pointerAngle = null; }} onKeyDown={(event) => { if (["ArrowLeft", "ArrowRight", "Enter", " "].includes(event.key)) { event.preventDefault(); motion.current.direction = event.key === "ArrowLeft" ? -1 : 1; motion.current.angle += motion.current.direction * 5; } }}>
+      <div ref={spinRef} data-moon-spin className="absolute inset-0 origin-center will-change-transform">
       <img
-        ref={(element) => { spinRef.current = element; if (imageRef) imageRef.current = element; }}
+        ref={imageRef}
         data-moon-image
         className={`landing-moon-mask absolute inset-0 z-1 block size-full object-contain saturate-[.88] max-[961px]:opacity-85 max-[701px]:opacity-100 motion-reduce:animate-none ${skipEntrance ? "animate-none" : "animate-moon-appear"}`}
         src="/images/red-moon.jpg"
@@ -177,6 +191,7 @@ export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipE
         fetchPriority="high"
         draggable={false}
       />
+      </div>
       </div>
       <div aria-hidden="true" className="absolute left-[43%] top-10 z-2 flex flex-col gap-[7px] font-mono text-[10px] leading-[normal] tracking-[1.1px] text-[#a39893] max-[1200px]:left-[51%] max-[961px]:left-[45%] max-[961px]:top-[25px] max-[961px]:text-[8px] max-[701px]:left-[53%] max-[701px]:top-6 max-[701px]:gap-1 max-[701px]:text-[7px]">
         <span className="text-[12px] text-[#c3b6ad] max-[961px]:text-[10px] max-[701px]:text-[9px]">SC—001</span>
@@ -201,7 +216,7 @@ export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipE
       />
       </>}
       <span aria-hidden="true" className="absolute bottom-[17px] left-[30%] z-2 font-mono text-[9px] leading-[normal] tracking-[1px] text-[#a39893] max-[1200px]:left-[38%] max-[1200px]:text-[8px] max-[961px]:bottom-[30px] max-[961px]:left-[34%] max-[961px]:text-[7px] max-[701px]:bottom-0 max-[701px]:left-[28%] max-[701px]:tracking-[.7px]">
-        25° 19′ N &nbsp; 0° 00′ E &nbsp; / &nbsp; ALL ARE WELCOME
+        CLICK OR DRAG THE MOON TO STEER
       </span>
     </div>
   );

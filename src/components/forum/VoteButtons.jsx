@@ -30,7 +30,7 @@ export default function VoteButtons({ post }) {
     } finally { pendingRef.current = false; setPending(false); }
   }
   return <div>
-    <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Post voting">
+    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Post voting">
       {[1, -1].map((direction) => {
         const up = direction === 1;
         const selected = vote === direction;
@@ -40,12 +40,13 @@ export default function VoteButtons({ post }) {
           disabled={pending || status === "loading"}
           aria-label={`${selected ? "Remove " : ""}${label.toLowerCase()}: ${count} ${up ? "upvotes" : "downvotes"}`}
           aria-pressed={selected}
-          className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-60 ${up
-            ? selected ? "border-[#ffac8d] bg-[#783b28] text-[#fff0e7] ring-1 ring-[#ffac8d]" : "border-[#ab6650] bg-[#2b1b18] text-[#ffbc9e] hover:bg-[#4a2b22]"
-            : selected ? "border-[#a6cdff] bg-[#254d79] text-[#eef7ff] ring-1 ring-[#a6cdff]" : "border-[#5b7fab] bg-[#172438] text-[#b9d8ff] hover:bg-[#253d5a]"}`}>
-          <Icon name={up ? "up" : "down"} size={19} />
+          title={selected ? `Remove ${label.toLowerCase()}` : label}
+          className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-wait disabled:opacity-60 ${selected
+            ? up ? "border-signal/35 bg-signal/10 text-[#ffb49f]" : "border-[#92bbfa]/35 bg-[#92bbfa]/10 text-[#b7d4ff]"
+            : "border-white/10 bg-white/4 text-[#b5bdcd] hover:border-white/20 hover:bg-white/8 hover:text-starlight"}`}>
+          <Icon name={up ? "up" : "down"} size={15} />
           <span>{label}</span>
-          <span aria-live="polite" className="min-w-6 rounded bg-black/25 px-1.5 py-0.5 text-center font-mono text-sm tabular-nums">{count}</span>
+          <span aria-live="polite" className="min-w-3 text-center font-mono text-[11px] tabular-nums">{count}</span>
           {selected && <span className="sr-only">Selected</span>}
         </button>;
       })}
