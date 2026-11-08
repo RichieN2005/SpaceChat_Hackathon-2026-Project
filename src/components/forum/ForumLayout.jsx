@@ -3,8 +3,8 @@ import { Link, NavLink, useLocation, useNavigate, useSearchParams } from "react-
 import { useAuth } from "../auth/AuthProvider";
 import { Icon, Logo, Starfield } from "../landing/visuals";
 
-export const primaryButton = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-signal px-4 py-2 text-sm font-semibold text-[#190e0b] transition-colors hover:bg-[#ff927b] disabled:cursor-wait disabled:opacity-60";
-export const secondaryButton = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/3 px-4 py-2 text-sm font-medium transition-colors hover:border-white/35 hover:bg-white/7 disabled:cursor-wait disabled:opacity-60";
+export const primaryButton = "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-signal px-4 py-2 text-sm leading-5 font-semibold text-[#190e0b] transition-colors hover:bg-[#ff927b] disabled:cursor-wait disabled:opacity-60";
+export const secondaryButton = "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-white/15 bg-white/3 px-4 py-2 text-sm leading-5 font-medium transition-colors hover:border-white/35 hover:bg-white/7 disabled:cursor-wait disabled:opacity-60";
 
 function SearchIcon() {
   return <svg aria-hidden="true" className="size-5 shrink-0 text-[#9296a3]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg>;

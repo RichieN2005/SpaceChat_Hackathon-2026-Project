@@ -412,8 +412,8 @@ export default function LandingPage({ returnFromSurface = null }) {
                   <MiniPlanet planet={community.planet} className="size-12! opacity-90 shadow-[inset_-17px_-5px_21px_#000b]! min-[961px]:size-16!" />
                 </div>
                 <button className={`${coralButton} mb-4`} onClick={() => openUniverse(community, true)}>Create a post</button>
-                <label className="mb-4 flex items-center gap-3 text-sm">Sort community posts
-                  <select value={postSort} onChange={(event) => { setPostSort(event.target.value); }} className="rounded border border-[#45383f] bg-[#171417] p-2">
+                <label className="mb-4 flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:gap-3">Sort community posts
+                  <select value={postSort} onChange={(event) => { setPostSort(event.target.value); }} className="min-h-11 w-full min-w-0 rounded border border-[#45383f] bg-[#171417] px-3 py-2 text-sm leading-5 sm:w-auto">
                     <option value="newest">Newest</option><option value="top">Top Voted Post</option><option value="discussed">Most Discussed</option>
                   </select>
                 </label>
