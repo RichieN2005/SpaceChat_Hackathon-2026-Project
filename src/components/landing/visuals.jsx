@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import "./effects.css";
 
 export function Icon({ name, size = 20, className = "", ...props }) {
@@ -65,7 +66,7 @@ export function Logo({ small = false, onClick }) {
           <circle cx="25" cy="19" r="1.4" fill="currentColor" />
         </svg>
       </span>
-      <span>spacechat<span className="text-signal">.</span></span>
+      <span>spacechat</span>
     </a>
   );
 }
@@ -137,6 +138,25 @@ function MoonAuthButton({ mode, label, subtitle, onAuthNavigate, isDeparting, cl
 }
 
 export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipEntrance = false }) {
+  const spinRef = useRef(null);
+  const motion = useRef({ angle: 0, direction: 1, dragging: false });
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let frame, previous;
+    function animate(time) {
+      const state = motion.current;
+      if (previous && !reduced.matches && !isDeparting) state.angle += Math.min(time - previous, 50) * .003 * state.direction;
+      previous = time;
+      if (spinRef.current) spinRef.current.style.transform = `rotate(${state.angle}deg)`;
+      frame = requestAnimationFrame(animate);
+    }
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [isDeparting]);
+  function steer(event) {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    motion.current.direction = event.clientX < bounds.left + bounds.width / 2 ? -1 : 1;
+  }
   return (
     <div
       className="pointer-events-none absolute -right-[45px] top-[21px] z-0 h-[670px] w-[720px] mix-blend-screen min-[1550px]:-right-[25px] min-[1550px]:top-[10px] min-[1550px]:h-[740px] min-[1550px]:w-[810px] max-[1200px]:-right-[95px] max-[1200px]:top-6 max-[1200px]:h-[610px] max-[1200px]:w-[650px] max-[961px]:-right-[147px] max-[961px]:top-[31px] max-[961px]:h-[575px] max-[961px]:w-[600px] max-[701px]:relative max-[701px]:left-1/2 max-[701px]:right-auto max-[701px]:top-0 max-[701px]:z-1 max-[701px]:-mt-[5px] max-[701px]:aspect-[1.13] max-[701px]:h-auto max-[701px]:w-[calc(100%+80px)] max-[701px]:max-w-[580px] max-[701px]:-translate-x-1/2"
@@ -144,8 +164,9 @@ export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipE
       <div aria-hidden="true" className="absolute inset-[14%] rounded-full bg-[#b22c131a] blur-[58px]" />
       <div aria-hidden="true" className="absolute left-[4%] top-[36%] z-0 h-[35%] w-[93%] -rotate-34 rounded-full border border-[#a5837133] max-[701px]:left-[4.5%] max-[701px]:top-[37%] max-[701px]:h-[28%] max-[701px]:w-[91%]" />
       <div aria-hidden="true" className="absolute left-[9%] top-[5%] z-0 h-[87%] w-[83%] -rotate-25 rounded-full border border-[#a5837116] max-[701px]:left-[4.5%] max-[701px]:top-[7%] max-[701px]:h-[84%] max-[701px]:w-[91%]" />
+      <div data-moon-frame className="pointer-events-auto absolute inset-0 z-1 cursor-grab touch-none rounded-full focus-visible:outline-2 focus-visible:outline-signal" role="button" tabIndex={0} aria-label="Rotate moon. Click or drag left or right to steer; arrow keys change direction." onPointerDown={(event) => { if (isDeparting) return; motion.current.dragging = true; event.currentTarget.setPointerCapture(event.pointerId); steer(event); }} onPointerMove={(event) => { if (motion.current.dragging) steer(event); }} onPointerUp={() => { motion.current.dragging = false; }} onPointerCancel={() => { motion.current.dragging = false; }} onKeyDown={(event) => { if (["ArrowLeft", "ArrowRight", "Enter", " "].includes(event.key)) { event.preventDefault(); motion.current.direction = event.key === "ArrowLeft" ? -1 : 1; motion.current.angle += motion.current.direction * 5; } }}>
       <img
-        ref={imageRef}
+        ref={(element) => { spinRef.current = element; if (imageRef) imageRef.current = element; }}
         data-moon-image
         className={`landing-moon-mask absolute inset-0 z-1 block size-full object-contain saturate-[.88] max-[961px]:opacity-85 max-[701px]:opacity-100 motion-reduce:animate-none ${skipEntrance ? "animate-none" : "animate-moon-appear"}`}
         src="/images/red-moon.jpg"
@@ -153,7 +174,9 @@ export function MoonScene({ onAuthNavigate, imageRef, isDeparting = false, skipE
         width="1200"
         height="1200"
         fetchPriority="high"
+        draggable={false}
       />
+      </div>
       <div aria-hidden="true" className="absolute left-[43%] top-10 z-2 flex flex-col gap-[7px] font-mono text-[10px] leading-[normal] tracking-[1.1px] text-[#a39893] max-[1200px]:left-[51%] max-[961px]:left-[45%] max-[961px]:top-[25px] max-[961px]:text-[8px] max-[701px]:left-[53%] max-[701px]:top-6 max-[701px]:gap-1 max-[701px]:text-[7px]">
         <span className="text-[12px] text-[#c3b6ad] max-[961px]:text-[10px] max-[701px]:text-[9px]">SC—001</span>
         <span>TRANSMITTING FROM EVERYWHERE</span>

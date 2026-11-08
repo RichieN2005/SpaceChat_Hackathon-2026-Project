@@ -1,4 +1,4 @@
-from flask import Blueprint, g, jsonify
+from flask import Blueprint, g, jsonify, session
 from psycopg.errors import CheckViolation, ForeignKeyViolation
 
 from api.common import database_cursor, error, json_object, login_required, serialize, valid_id
@@ -17,12 +17,15 @@ def list_comments(post_id):
             return error("Post not found", 404)
         cursor.execute(
             """
-            SELECT id, post_id, author_id, parent_comment_id, body, created_at
-            FROM public.comments
-            WHERE post_id = %s
-            ORDER BY created_at, id
+            SELECT c.*, u.username AS author,
+                (SELECT count(*) FROM public.comment_votes WHERE comment_id=c.id AND value=1) AS upvotes,
+                (SELECT count(*) FROM public.comment_votes WHERE comment_id=c.id AND value=-1) AS downvotes,
+                COALESCE((SELECT value FROM public.comment_votes WHERE comment_id=c.id AND user_id=%s), 0) AS user_vote
+            FROM public.comments c JOIN public.users u ON u.id=c.author_id
+            WHERE c.post_id = %s
+            ORDER BY upvotes DESC, c.created_at DESC, c.id DESC
             """,
-            (post_id,),
+            (session.get("user_id"), post_id),
         )
         rows = cursor.fetchall()
 

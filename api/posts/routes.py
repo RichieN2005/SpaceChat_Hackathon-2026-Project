@@ -1,10 +1,22 @@
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, g, jsonify, request, session
 from psycopg.errors import ForeignKeyViolation
 
 from api.common import database_cursor, error, json_object, login_required, serialize, text_field, valid_id
 
 posts = Blueprint("posts", __name__, url_prefix="/api/posts")
 
+
+
+# Aggregate independently to avoid multiplying votes by the number of comments.
+POST_SELECT = """
+SELECT p.*, u.username AS author,
+       (SELECT count(*) FROM public.post_votes WHERE post_id=p.id AND value=1) AS upvotes,
+       (SELECT count(*) FROM public.post_votes WHERE post_id=p.id AND value=-1) AS downvotes,
+       COALESCE((SELECT sum(value) FROM public.post_votes WHERE post_id=p.id), 0) AS score,
+       COALESCE((SELECT value FROM public.post_votes WHERE post_id=p.id AND user_id=%s), 0) AS user_vote,
+       (SELECT count(*) FROM public.comments WHERE post_id=p.id) AS comment_count
+FROM public.posts p JOIN public.users u ON u.id=p.author_id
+"""
 
 @posts.get("")
 def list_posts():
@@ -14,12 +26,20 @@ def list_posts():
         if not valid_id(subreddit_id):
             return error("subreddit_id must be a positive integer", 400)
 
-    query = "SELECT id, author_id, subreddit_id, title, body, created_at FROM public.posts"
-    params = ()
+    sort = request.args.get("sort", "newest")
+    ordering = {
+        "newest": "p.created_at DESC, p.id DESC",
+        "top": "score DESC, p.created_at DESC, p.id DESC",
+        "discussed": "comment_count DESC, p.created_at DESC, p.id DESC",
+    }
+    if sort not in ordering:
+        return error("sort must be newest, top, or discussed", 400)
+    query = POST_SELECT
+    params = (session.get("user_id"),)
     if subreddit_id is not None:
-        query += " WHERE subreddit_id = %s"
-        params = (subreddit_id,)
-    query += " ORDER BY created_at DESC, id DESC"
+        query += " WHERE p.subreddit_id = %s"
+        params += (subreddit_id,)
+    query += " ORDER BY " + ordering[sort]
 
     with database_cursor() as cursor:
         cursor.execute(query, params)
@@ -67,14 +87,7 @@ def get_post(post_id):
         return error("Post not found", 404)
 
     with database_cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT id, author_id, subreddit_id, title, body, created_at
-            FROM public.posts
-            WHERE id = %s
-            """,
-            (post_id,),
-        )
+        cursor.execute(POST_SELECT + " WHERE p.id = %s", (session.get("user_id"), post_id))
         post = cursor.fetchone()
 
     if post is None:

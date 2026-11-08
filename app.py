@@ -10,6 +10,7 @@ from api.posts.routes import posts
 from api.subreddits.routes import subreddits
 from api.users.routes import users
 from api.health import health_bp
+from api.votes import votes
 
 # Load environment variables for local development.
 load_dotenv()
@@ -71,6 +72,7 @@ app.register_blueprint(users)
 app.register_blueprint(subreddits)
 app.register_blueprint(posts)
 app.register_blueprint(comments)
+app.register_blueprint(votes)
 
 
 if __name__ == "__main__":
