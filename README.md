@@ -437,3 +437,24 @@ timeouts, empty answers, and unavailable request-limit storage. `Retry-After` us
 the actual reset time when supplied by the provider or the application limiter.
 An exhausted provider quota must reset or be increased in the Gemini project
 before real chat and mention generation can succeed.
+
+
+### Updating the deployed AstroBot API key
+
+Set `GEMINI_API_KEY` on the Flask service in Render, then choose **Save and deploy**
+or **Save, rebuild, and deploy** and wait for that deploy to become live. **Save only**
+does not activate the new environment, and a plain service restart retains the
+previous deployment's environment. See [Render environment variables](https://render.com/docs/configure-environment-variables)
+and [Render restarts](https://render.com/docs/deploys#restarting-a-service).
+
+The React/Vercel frontend calls `/api/ai/chat` through its existing proxy and needs
+no Gemini API key. Never add the key to `VITE_*` variables or browser code.
+A new API key in the same Google project does not reset that project's quota:
+[Gemini rate limits](https://ai.google.dev/gemini-api/docs/rate-limits) are per project.
+The application's PostgreSQL request limits also remain independent of API keys.
+
+Both chat interfaces share a 30-second browser request deadline, preserve unsent
+text on failure, and retain backend quota/error categories and retry times. A
+non-JSON hosting/proxy error is described as a server failure instead of being
+mistaken for an invalid key or a confirmed exhausted quota. Deploy the updated
+frontend to activate this handling on the hosted site.

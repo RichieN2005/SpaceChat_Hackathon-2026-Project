@@ -1,29 +1,60 @@
 export class ForumApiError extends Error {
-  constructor(message, status = 0) {
+  constructor(message, status = 0, { code, retryAfter } = {}) {
     super(message);
     this.name = "ForumApiError";
     this.status = status;
+    if (code) this.code = code;
+    if (retryAfter) this.retryAfter = retryAfter;
   }
 }
 
-async function read(path, signal, { method = "GET", data } = {}) {
-  let response;
-  try {
-    response = await fetch(`/api${path}`, {
-      method, credentials: "same-origin", cache: "no-store",
-      headers: { Accept: "application/json", ...(data !== undefined ? { "Content-Type": "application/json" } : {}) },
-      ...(data !== undefined ? { body: JSON.stringify(data) } : {}), signal,
-    });
-  } catch (error) {
-    if (error.name === "AbortError") throw error;
-    throw new ForumApiError("We couldn’t reach SpaceChat. Please try again.");
+async function read(path, signal, { method = "GET", data, timeoutMs } = {}) {
+  const isChat = path === "/ai/chat";
+  const controller = timeoutMs ? new AbortController() : null;
+  const cancel = () => controller?.abort();
+  if (controller && signal) {
+    if (signal.aborted) cancel();
+    else signal.addEventListener("abort", cancel, { once: true });
   }
-  let payload;
-  if (response.status === 204) return null;
-  try { payload = await response.json(); }
-  catch { throw new ForumApiError("SpaceChat is unavailable right now. Please try again shortly.", response.status); }
-  if (!response.ok) throw new ForumApiError(typeof payload?.error === "string" ? payload.error : "We couldn’t load this transmission.", response.status);
-  return payload;
+  let timedOut = false;
+  const timer = controller ? setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs) : null;
+  try {
+    let response;
+    try {
+      response = await fetch(`/api${path}`, {
+        method, credentials: "same-origin", cache: "no-store",
+        headers: { Accept: "application/json", ...(data !== undefined ? { "Content-Type": "application/json" } : {}) },
+        ...(data !== undefined ? { body: JSON.stringify(data) } : {}), signal: controller?.signal || signal,
+      });
+    } catch (error) {
+      if (error.name === "AbortError" || timedOut) throw error;
+      throw new ForumApiError(isChat ? "We could not connect to AstroBot's server. Please try again shortly." : "We couldn’t reach SpaceChat. Please try again.");
+    }
+    if (response.status === 204) return null;
+    let payload;
+    try { payload = await response.json(); }
+    catch (error) {
+      if (timedOut || error.name === "AbortError") throw error;
+      const message = !isChat ? "SpaceChat is unavailable right now. Please try again shortly."
+        : response.status === 504 ? "AstroBot's server took too long to respond. Please try again in a moment."
+        : response.status === 401 ? "Log in again to chat with AstroBot."
+        : response.status === 404 ? "AstroBot is not available on this server. Please try again after the service is updated."
+        : response.status >= 500 ? "AstroBot's server is unavailable or restarting. Please wait a moment and try again."
+        : "AstroBot's server returned an unreadable response. Please try again shortly.";
+      throw new ForumApiError(message, response.status, { code: isChat ? "ai_server_unavailable" : undefined });
+    }
+    if (!response.ok) throw new ForumApiError(
+      typeof payload?.error === "string" ? payload.error : isChat ? "AstroBot could not answer right now. Please try again later." : "We couldn’t load this transmission.",
+      response.status, { code: payload?.code, retryAfter: payload?.retry_after || Number(response.headers.get("Retry-After")) || undefined },
+    );
+    return payload;
+  } catch (error) {
+    if (timedOut) throw new ForumApiError("AstroBot took too long to respond. Your message is still here; please try again in a moment.", 504, { code: "ai_timeout" });
+    throw error;
+  } finally {
+    if (timer !== null) clearTimeout(timer);
+    signal?.removeEventListener("abort", cancel);
+  }
 }
 
 function collection(payload) {
@@ -61,7 +92,11 @@ export const forumApi = {
   async setMembership(id, fields) { return read(`/subreddits/${encodeURIComponent(id)}/membership`, undefined, { method: "PUT", data: fields }); },
   async user(id, signal) { return read(`/users/${encodeURIComponent(id)}`, signal); },
   async updateUser(id, fields) { return read(`/users/${encodeURIComponent(id)}`, undefined, { method: "PUT", data: fields }); },
-  async chat(message) { return read("/ai/chat", undefined, { method: "POST", data: { message } }); },
+  async chat(message, signal) {
+    const payload = await read("/ai/chat", signal, { method: "POST", data: { message }, timeoutMs: 30000 });
+    if (typeof payload?.response !== "string" || !payload.response.trim()) throw new ForumApiError("AstroBot returned no answer. Try rephrasing your message.", 503, { code: "ai_empty_response" });
+    return payload;
+  },
   async popularCommunities(signal) {
     const items = collection(await read("/subreddits?sort=popular&limit=6", signal));
     if (items.some((item) => !item || !Number.isSafeInteger(item.id) || item.id < 1 || typeof item.name !== "string" || !Number.isSafeInteger(item.post_count) || item.post_count < 0)) {

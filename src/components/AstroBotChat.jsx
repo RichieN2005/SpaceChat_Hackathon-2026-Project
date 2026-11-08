@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { forumApi } from '../lib/forum';
 
 /**
  * AstroBot dock. Mount this once near the React root.
@@ -51,20 +52,9 @@ export default function AstroBotChat({ postId = null, onThreadReply, inDialog = 
         return;
       }
 
-      const response = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ message: text }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.error || (response.status === 429
-          ? "AstroBot has reached a request or usage limit. Please try again later."
-          : response.status === 401 ? "Log in to chat with AstroBot." : "Unable to reach AstroBot. Please try again shortly."));
-      }
+      const data = await forumApi.chat(text);
       setMessage('');
-      setHistory((old) => [...old, { from: 'bot', text: data.response || 'No response received.' }]);
+      setHistory((old) => [...old, { from: 'bot', text: data.response }]);
     } catch (e) {
       setError(e.message || 'Something went wrong.');
     } finally {

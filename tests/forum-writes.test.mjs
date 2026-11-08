@@ -82,3 +82,64 @@ test("AI chat sends only the explicitly submitted message", async () => {
   assert.equal(fetch.mock.calls[0].arguments[0], "/api/ai/chat");
   assert.deepEqual(JSON.parse(fetch.mock.calls[0].arguments[1].body), { message: "Why is Neptune blue?" });
 });
+
+
+test("AI errors retain quota categories and provider reset times", async () => {
+  mock.method(globalThis, "fetch", async () => json({ error: "Daily AI allowance has been used up.", code: "ai_daily_usage_limit", retry_after: 3600 }, 429));
+  await assert.rejects(forumApi.chat("Hello"), { status: 429, code: "ai_daily_usage_limit", retryAfter: 3600, message: "Daily AI allowance has been used up." });
+});
+
+test("AI proxy errors distinguish server failures from empty answers", async () => {
+  mock.method(globalThis, "fetch", async () => new Response("<html>Bad gateway</html>", { status: 502 }));
+  await assert.rejects(forumApi.chat("Hello"), (error) => error.status === 502 && /server is unavailable or restarting/.test(error.message));
+  mock.restoreAll();
+  mock.method(globalThis, "fetch", async () => new Response("<html>Gateway timeout</html>", { status: 504 }));
+  await assert.rejects(forumApi.chat("Hello"), (error) => error.status === 504 && /too long/.test(error.message));
+  mock.restoreAll();
+  mock.method(globalThis, "fetch", async () => json({ response: " " }));
+  await assert.rejects(forumApi.chat("Hello"), { code: "ai_empty_response" });
+});
+
+test("AI requests stop waiting after thirty seconds and can be retried", async (context) => {
+  context.mock.timers.enable({ apis: ["setTimeout"] });
+  let sentSignal;
+  mock.method(globalThis, "fetch", (_path, options) => new Promise((_resolve, reject) => {
+    sentSignal = options.signal;
+    options.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+  }));
+  const request = forumApi.chat("Hello");
+  const assertion = assert.rejects(request, { status: 504, code: "ai_timeout" });
+  context.mock.timers.tick(30000);
+  await assertion;
+  assert.equal(sentSignal.aborted, true);
+  mock.restoreAll();
+  mock.method(globalThis, "fetch", async () => json({ response: "Signal received." }));
+  assert.equal((await forumApi.chat("Hello again")).response, "Signal received.");
+});
+
+test("AI timeout also covers a stalled response body", async (context) => {
+  context.mock.timers.enable({ apis: ["setTimeout"] });
+  let fetchSignal;
+  mock.method(globalThis, "fetch", async (_path, options) => {
+    fetchSignal = options.signal;
+    return { status: 200, ok: true, json: () => new Promise((_resolve, reject) => {
+      fetchSignal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+    }) };
+  });
+  const request = forumApi.chat("Hello");
+  const assertion = assert.rejects(request, { status: 504, code: "ai_timeout" });
+  await Promise.resolve();
+  await Promise.resolve();
+  context.mock.timers.tick(30000);
+  await assertion;
+});
+
+test("AI caller cancellation remains an abort rather than a timeout", async () => {
+  const controller = new AbortController();
+  mock.method(globalThis, "fetch", (_path, options) => new Promise((_resolve, reject) => {
+    options.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+  }));
+  const request = forumApi.chat("Hello", controller.signal);
+  controller.abort();
+  await assert.rejects(request, { name: "AbortError" });
+});
