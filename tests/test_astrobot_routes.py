@@ -18,6 +18,11 @@ class AstroBotRouteTests(unittest.TestCase):
         def create_comment(post_id):
             return jsonify(id=99, post_id=post_id), 201
 
+        @self.app.patch("/api/posts/<int:source_id>")
+        @self.app.patch("/api/comments/<int:source_id>")
+        def edit_content(source_id):
+            return jsonify(id=source_id)
+
         install_astrobot(self.app)
         install_astrobot(self.app)  # Registration is idempotent.
         self.client = self.app.test_client()
@@ -74,6 +79,27 @@ class AstroBotRouteTests(unittest.TestCase):
         with patch("api.astrobot.routes.generate_mention") as mention:
             self.client.post("/api/posts", json={"title": "hello", "body": "everyone"})
         mention.assert_not_called()
+
+    def test_mentions_added_by_edit_trigger_replies(self):
+        for path, kind, source_id in (("/api/posts/42", "post", 42), ("/api/comments/99", "comment", 99)):
+            with self.subTest(kind=kind), patch("api.astrobot.routes.generate_mention", return_value="completed") as mention:
+                response = self.client.patch(path, json={"body": "@AstroBot explain"})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.headers["X-AstroBot-Status"], "completed")
+                mention.assert_called_once_with(kind, source_id, "client")
+
+    def test_edits_without_mentions_skip_generation(self):
+        with patch("api.astrobot.routes.generate_mention") as mention:
+            self.client.patch("/api/comments/99", json={"body": "hello"})
+        mention.assert_not_called()
+
+    def test_post_title_is_part_of_bot_question(self):
+        source = {"title": "@AstroBot why is Mars red?", "body": "Tell me more", "author": "human", "post_id": 42}
+        with patch("api.astrobot.storage.fetch_source", return_value=source), patch("api.astrobot.storage.reserve_mention", return_value=True), patch("api.astrobot.storage.enforce_quota"), patch("api.astrobot.storage.discussion_context", return_value=""), patch("api.astrobot.service.generate_reply", return_value="Iron oxide.") as generate, patch("api.astrobot.storage.complete_mention") as complete:
+            from api.astrobot.routes import generate_mention
+            self.assertEqual(generate_mention("post", 42, "client"), "completed")
+        self.assertIn(source["title"], generate.call_args.args[0])
+        self.assertIsNone(complete.call_args.kwargs["parent_comment_id"])
 
     def test_duplicate_mention_does_not_generate(self):
         with patch("api.astrobot.storage.fetch_source", return_value={"title": "@AstroBot", "body": "hello"}), patch("api.astrobot.storage.reserve_mention", return_value=False), patch("api.astrobot.service.generate_reply") as generate:

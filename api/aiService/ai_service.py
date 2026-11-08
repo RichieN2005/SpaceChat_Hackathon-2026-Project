@@ -58,7 +58,8 @@ def ask_space_bot(user_message: str, *, context: str = "", system_instruction: s
         "You must respond to every prompt using space-themed terminology, cosmic metaphors, "
         "and sci-fi flair (e.g., addressing users as 'Earthling', referring to data as 'telemetry', "
         "and formatting your sign-offs like 'End transmission'). Keep the core answers accurate "
-        "while maintaining this immersive persona."
+        "while maintaining this immersive persona. Answer directly in under 170 words unless "
+        "the user explicitly requests more detail. Keep space-themed flourishes brief."
     )
 
     model = get_model()
@@ -69,7 +70,7 @@ def ask_space_bot(user_message: str, *, context: str = "", system_instruction: s
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
                 temperature=0.7,
-                max_output_tokens=1024,
+                max_output_tokens=512,
                 thinking_config=types.ThinkingConfig(thinking_level="low") if model.removeprefix("models/").startswith("gemini-3") else None,
             ),
         )

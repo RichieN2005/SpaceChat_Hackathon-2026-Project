@@ -380,7 +380,9 @@ the API for posts, replies, and votes. Run API regression checks with
 AstroBot is merged into the existing Flask app and React community dialog.
 The chat dock works on all pages. Open a real community post and use
 **Ask in this thread** to publish an explicit `@AstroBot` comment, or mention
-`@AstroBot` in a new post/comment. Replies are saved as comments and labeled
+`@AstroBot` in a new post/comment or add the mention while editing one. Mentions
+are case insensitive. Each post/comment can trigger one reply; editing it again
+does not generate duplicate replies. Replies are saved as comments and labeled
 **AI bot**. The dialog refreshes in place; it does not reload the page.
 Sample communities remain session-only previews and cannot publish AI mentions.
 
@@ -401,10 +403,12 @@ or observed client IP. Counters are shared in PostgreSQL across workers.
 `POST /api/ai/chat` accepts `{"message":"..."}` (up to 1600 characters).
 It returns `sender`, `is_ai`, and `response`, or a safe 400/429/502/503 error.
 `GET /api/ai/mentions/post/:id` and `/api/ai/mentions/comment/:id` report mention
-status. Create responses include `X-AstroBot-Status` when a mention is requested.
+status. Create and edit responses include `X-AstroBot-Status` when a mention is requested.
 AI failures preserve the human post/comment. Mention generation runs synchronously
-with a 15-second provider timeout and one reservation per source; failed mentions
+with a 20-second provider timeout and one reservation per source; failed mentions
 are not retried automatically. Allow for generation time in server timeouts.
+Chat answers default to under 170 words with a 512-token output cap to reduce
+generation time. Actual latency still depends on the provider and backend hosting.
 
 The AstroBot migration adds `users.is_bot`, an AI account, quota counters, and
 mention reservations. It preserves existing accounts; an existing username/email

@@ -84,6 +84,8 @@ class AstroBotRoutesTest(unittest.TestCase):
         self.assertEqual(arguments["contents"], "Hello")
         self.assertIn("AstroBot", arguments["config"].system_instruction)
         self.assertIn("core answers accurate", arguments["config"].system_instruction)
+        self.assertIn("under 170 words", arguments["config"].system_instruction)
+        self.assertEqual(arguments["config"].max_output_tokens, 512)
 
     def test_provider_failures_never_expose_raw_exception(self):
         self.login()

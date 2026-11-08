@@ -12,6 +12,7 @@ from api.aiService.ai_service import AstroBotError
 logger = logging.getLogger(__name__)
 astrobot_bp = Blueprint("astrobot", __name__)
 COMMENT_CREATE = re.compile(r"^/api/posts/(\d+)/comments/?$")
+CONTENT_EDIT = re.compile(r"^/api/(posts|comments)/(\d+)$")
 
 
 def error_json(message: str, status: int):
@@ -129,7 +130,10 @@ def generate_mention(kind: str, source_id: int, client_key: str) -> str:
         if kind == "comment":
             heading += f"Original post: {original['post_body'][:850]}\n"
         context = heading + f"Recent discussion:\n{thread}"
-        message = f"{original['author']} says: {original['body']}"
+        question = original['body']
+        if kind == "post":
+            question = f"{original['title']}\n{question}"
+        message = f"{original['author']} says: {question}"
         reply = "🤖 AstroBot (AI-generated): " + service.generate_reply(message, context=context)
         storage.complete_mention(
             kind, source_id, reply, post_id=post_id,
@@ -155,11 +159,16 @@ def install_astrobot(app, *, register_chat=True):
 
     @app.after_request
     def astrobot_handle_created_mentions(response):
-        if request.method != "POST" or not 200 <= response.status_code < 300:
+        if request.method not in ("POST", "PATCH") or not 200 <= response.status_code < 300:
             return response
         path = request.path.rstrip("/")
         kind = None
-        if path == "/api/posts":
+        edited = CONTENT_EDIT.fullmatch(path) if request.method == "PATCH" else None
+        if edited:
+            kind = "post" if edited[1] == "posts" else "comment"
+        elif request.method != "POST":
+            return response
+        elif path == "/api/posts":
             kind = "post"
         elif COMMENT_CREATE.fullmatch(path):
             kind = "comment"
@@ -175,7 +184,7 @@ def install_astrobot(app, *, register_chat=True):
             mentioning = service.is_mentioned(body.get("body"))
         if not mentioning:
             return response
-        source_id = _created_id(response.get_json(silent=True), kind)
+        source_id = int(edited[2]) if edited else _created_id(response.get_json(silent=True), kind)
         if source_id is None:
             logger.warning("AstroBot mention not triggered: create-%s JSON has no ID", kind)
             response.headers["X-AstroBot-Status"] = "missing_id"
