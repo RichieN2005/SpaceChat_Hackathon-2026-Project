@@ -195,6 +195,7 @@ function DiscussionThread({ postId, onCountChange }) {
     try {
       await action();
       if (!mounted.current) return;
+      window.dispatchEvent(new Event("astrobot:watch"));
       setNotice(message);
       const refreshed = await reload();
       if (!refreshed && mounted.current) setNotice(`${message} Refresh the conversation below to see the latest comments.`);

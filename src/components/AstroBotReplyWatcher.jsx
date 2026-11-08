@@ -11,6 +11,7 @@ export default function AstroBotReplyWatcher({ postId, onBotReply }) {
     let busy = false;
     let active = true;
     let interval;
+    let timeout;
     const load = async () => {
       if (busy || document.visibilityState === "hidden") return;
       busy = true;
@@ -26,10 +27,16 @@ export default function AstroBotReplyWatcher({ postId, onBotReply }) {
       } catch { /* A later poll can recover from a temporary connection error. */ }
       finally { busy = false; }
     };
-    load();
-    interval = window.setInterval(load, 4000);
-    const timeout = window.setTimeout(() => window.clearInterval(interval), 60000);
-    return () => { active = false; controller.abort(); window.clearInterval(interval); window.clearTimeout(timeout); };
+    const watch = () => {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+      load();
+      interval = window.setInterval(load, 4000);
+      timeout = window.setTimeout(() => window.clearInterval(interval), 60000);
+    };
+    watch();
+    window.addEventListener("astrobot:watch", watch);
+    return () => { active = false; controller.abort(); window.removeEventListener("astrobot:watch", watch); window.clearInterval(interval); window.clearTimeout(timeout); };
   }, [postId]);
   return null;
 }

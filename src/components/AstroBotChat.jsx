@@ -46,8 +46,9 @@ export default function AstroBotChat({ postId = null, onThreadReply, inDialog = 
           throw new Error(result.status === 401 ? 'Log in to post a public mention.' : data.error || 'Unable to post comment.');
         }
         const status = result.headers.get('X-AstroBot-Status');
+        window.dispatchEvent(new Event('astrobot:watch'));
         setMessage('');
-        setHistory((old) => [...old, { from: 'bot', text: status === 'completed' ? 'Your mention and AstroBot reply are now in the discussion.' : 'Your mention was saved. AstroBot could not reply right now.' }]);
+        setHistory((old) => [...old, { from: 'bot', text: status === 'completed' ? 'Your mention and AstroBot reply are now in the discussion.' : status === 'pending' ? 'Your mention was saved. AstroBot is preparing a reply in the discussion.' : 'Your mention was saved. AstroBot could not reply right now.' }]);
         await onThreadReply?.();
         return;
       }

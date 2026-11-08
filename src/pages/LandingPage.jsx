@@ -155,7 +155,7 @@ export default function LandingPage({ returnFromSurface = null }) {
     if (!item.apiId) {
       setPreview({ community: item, composing: compose, postId });
     } else if (compose) {
-      navigate(item.apiId ? `/submit?community=${item.apiId}` : "/submit");
+      navigate(item.apiId ? `/submit?community=${item.apiId}` : "/submit", { state: { cancelTo: "/landing" } });
     } else {
       navigate(item.apiId ? `/communities/${item.apiId}` : "/home");
     }

@@ -404,9 +404,13 @@ or observed client IP. Counters are shared in PostgreSQL across workers.
 It returns `sender`, `is_ai`, and `response`, or a safe 400/429/502/503 error.
 `GET /api/ai/mentions/post/:id` and `/api/ai/mentions/comment/:id` report mention
 status. Create and edit responses include `X-AstroBot-Status` when a mention is requested.
-AI failures preserve the human post/comment. Mention generation runs synchronously
-with a 20-second provider timeout and one reservation per source; failed mentions
-are not retried automatically. Allow for generation time in server timeouts.
+AI failures preserve the human post/comment. Mention responses return immediately
+with `X-AstroBot-Status: pending`. A WSGI response-close callback generates the bot
+reply after the save response is sent, so Gemini latency does not hold up the save
+confirmation. Generation still occupies a server worker, uses a 20-second provider
+timeout, and has one reservation per source. This is best effort: process restarts
+can interrupt replies, and failed mentions are not retried automatically. Durable
+retries and higher throughput require a separate queue and worker.
 Chat answers default to under 170 words with a 512-token output cap to reduce
 generation time. Actual latency still depends on the provider and backend hosting.
 

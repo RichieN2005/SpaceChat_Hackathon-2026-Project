@@ -1,22 +1,22 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Icon, Logo } from "../landing/visuals";
-import { safeReturnTo } from "../../lib/authNavigation";
+import { authCancelDestination } from "../../lib/authNavigation";
 
 export default function AuthLayout({ mode, title, accent, description, children }) {
   const headingRef = useRef(null);
   const returningRef = useRef(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const fromFeed = !location.state?.fromOrbit && location.state && Object.hasOwn(location.state, "returnTo");
+  const fromFeed = !location.state?.fromOrbit && location.state && Object.hasOwn(location.state, "returnTo") && authCancelDestination(location.state) !== "/landing";
 
   function returnToPreviousPage() {
     if (returningRef.current) return;
     returningRef.current = true;
     if (location.state?.fromOrbit) {
       navigate(-1);
-    } else if (fromFeed) {
-      navigate(safeReturnTo(location.state.returnTo), { replace: true });
+    } else if (location.state && (Object.hasOwn(location.state, "returnTo") || Object.hasOwn(location.state, "cancelTo"))) {
+      navigate(authCancelDestination(location.state), { replace: true });
     } else {
       navigate("/landing", { state: { returnFromSurface: mode } });
     }

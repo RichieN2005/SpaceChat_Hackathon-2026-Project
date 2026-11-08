@@ -66,14 +66,21 @@ class AstroBotRouteTests(unittest.TestCase):
     def test_mentions_preserve_create_response(self):
         with patch("api.astrobot.routes.generate_mention", return_value="completed") as mention:
             response = self.client.post("/api/posts", json={"title": "@AstroBot", "body": "hello"})
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(response.json["id"], 42)
+            self.assertEqual(response.headers["X-AstroBot-Status"], "pending")
+            mention.assert_not_called()
+            response.close()  # WSGI closes the iterable after sending the body.
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json["id"], 42)
-        self.assertEqual(response.headers["X-AstroBot-Status"], "completed")
+        self.assertEqual(response.headers["X-AstroBot-Status"], "pending")
         mention.assert_called_once_with("post", 42, "client")
         with patch("api.astrobot.routes.generate_mention", side_effect=RuntimeError("offline")), self.assertLogs("api.astrobot.routes", level="ERROR"):
             response = self.client.post("/api/posts/42/comments", json={"body": "@AstroBot hello"})
+            self.assertEqual(response.json["id"], 99)
+            response.close()
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.headers["X-AstroBot-Status"], "failed")
+        self.assertEqual(response.headers["X-AstroBot-Status"], "pending")
 
     def test_no_mention_skips_generation(self):
         with patch("api.astrobot.routes.generate_mention") as mention:
@@ -85,7 +92,9 @@ class AstroBotRouteTests(unittest.TestCase):
             with self.subTest(kind=kind), patch("api.astrobot.routes.generate_mention", return_value="completed") as mention:
                 response = self.client.patch(path, json={"body": "@AstroBot explain"})
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.headers["X-AstroBot-Status"], "completed")
+                self.assertEqual(response.headers["X-AstroBot-Status"], "pending")
+                mention.assert_not_called()
+                response.close()
                 mention.assert_called_once_with(kind, source_id, "client")
 
     def test_edits_without_mentions_skip_generation(self):

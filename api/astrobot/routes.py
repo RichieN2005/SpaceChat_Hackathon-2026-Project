@@ -98,10 +98,10 @@ def _created_id(response_json: dict | None, kind: str):
 
 
 def generate_mention(kind: str, source_id: int, client_key: str) -> str:
-    """Synchronous MVP trigger. Failures never undo the human's saved content.
+    """Generate a reply after the human's save response has been sent.
 
-    For production scale, replace this with a reliable DB queue/worker; don't
-    spawn a background thread in Gunicorn's request process.
+    This still occupies the WSGI worker. For durable retries and higher throughput,
+    move generation to a database queue and separate worker.
     """
     original = storage.fetch_source(kind, source_id)
     if not original:
@@ -190,8 +190,19 @@ def install_astrobot(app, *, register_chat=True):
             response.headers["X-AstroBot-Status"] = "missing_id"
             return response
         try:
-            result = generate_mention(kind, source_id, storage.public_client_key(request))
-            response.headers["X-AstroBot-Status"] = result
+            # Capture request data now: Flask has torn down the request context
+            # when the WSGI server closes the response iterable.
+            client_key = storage.public_client_key(request)
+
+            @response.call_on_close
+            def reply_after_save():
+                with app.app_context():
+                    try:
+                        generate_mention(kind, source_id, client_key)
+                    except Exception:
+                        logger.exception("AstroBot deferred mention failed")
+
+            response.headers["X-AstroBot-Status"] = "pending"
         except Exception:
             logger.exception("AstroBot mention integration failed")
             response.headers["X-AstroBot-Status"] = "failed"

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { authNavigationState, defaultDestination, safeReturnTo } from "../src/lib/authNavigation.js";
+import { authCancelDestination, authNavigationState, defaultDestination, safeReturnTo } from "../src/lib/authNavigation.js";
 
 test("login destinations preserve public feed and post context", () => {
   for (const destination of ["/", "/?community=3&sort=new#compose", "/posts/42", "/posts/42?reply=9#comments"]) {
@@ -34,4 +34,20 @@ test("default entry sends guests to landing and signed-in users to their feed", 
 
 test("login can return guests to the public forum and its active filters", () => {
   assert.equal(safeReturnTo("/home?community=3&sort=top#comments"), "/home?community=3&sort=top#comments");
+});
+
+test("canceling login for a landing-page post returns to landing while login retains the composer", () => {
+  const state = { returnTo: "/submit?community=3", cancelTo: "/landing" };
+  assert.equal(authCancelDestination(state), "/landing");
+  assert.deepEqual(authNavigationState(state), state);
+  assert.deepEqual(authNavigationState(authNavigationState(state)), state);
+});
+
+test("canceling authentication never returns a guest to a protected route", () => {
+  for (const [returnTo, expected] of [["/submit", "/home"], ["/submit?community=3", "/communities/3"], ["/posts/42/edit", "/posts/42"], ["/astrobot", "/home"], ["/posts/42#comments", "/posts/42#comments"]]) {
+    assert.equal(authCancelDestination({ returnTo }), expected);
+    assert.equal(authCancelDestination({ cancelTo: returnTo }), expected);
+  }
+  assert.equal(authCancelDestination({ cancelTo: "//evil.example" }), "/");
+  assert.equal(authCancelDestination({ returnTo: "/submit?community=//evil.example" }), "/home");
 });
