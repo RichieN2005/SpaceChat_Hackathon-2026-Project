@@ -10,7 +10,10 @@ Page structure:
 
 - `src/app/app.jsx` contains route definitions only.
 - `src/pages/LandingPage.jsx` contains the landing page and its interactions.
-- `src/pages/LoginPage.jsx` and `src/pages/SignupPage.jsx` provide separate `/login` and `/signup` pages.
+- `src/pages/LoginPage.jsx` and `src/pages/SignupPage.jsx` connect the separate `/login` and `/signup` pages to the Flask auth API.
+- `src/pages/HomePage.jsx` is the protected, minimal Home page.
+- `src/components/auth/AuthProvider.jsx` restores the server session and shares authentication state; `AuthRoutes.jsx` enforces guest-only and signed-in routes.
+- `src/lib/auth.js` sends same-origin, cookie-authenticated API requests and translates API failures into form feedback.
 - `src/components/auth/AuthLayout.jsx` shares the enlarged lunar surface background and auth page layout.
 - `src/components/landing/PlanetTransition.jsx` animates into the lunar surface when opening an auth page and zooms back out when returning. The Back to orbit button, home logo, and browser Back return to the landing moon. Reduced-motion users navigate immediately.
 - `src/components/auth/useOrbitReturn.js` detects returns from auth pages, including browser Back, and restores focus to the corresponding planet marker after the zoom out.
@@ -19,7 +22,23 @@ Page structure:
 - `src/app/ForumDialog.jsx` contains the session-only forum preview.
 - `src/index.css` configures Tailwind theme tokens, animations, and base styles. Layout, typography, colors, responsive behavior, and component states use Tailwind utility classes in JSX.
 
-The moon's Log in and Sign up markers and the navigation buttons open the corresponding auth page. These forms currently validate input and display a coming-soon notice; they do not create accounts, authenticate users, store credentials, or call an authentication API. Connect the form submit handlers to the backend when authentication is ready.
+The moon's Log in and Sign up markers and the navigation buttons open the corresponding auth page. Login accepts an email address or username. Signup registers the callsign as `username`, then logs in automatically. Successful authentication redirects to `/home`; authenticated visitors to `/`, `/landing`, `/about`, `/login`, or `/signup` also redirect to Home. Guests visiting `/home` redirect to login. Home includes logout.
+
+Authentication uses Flask's signed session cookie, restored through `GET /api/auth/me` on page load. Credentials and authentication flags are not stored in local/session storage. Forms show validation, loading states, and API errors. `POST /api/auth/logout` clears the server session. The Vercel rewrite forwards nested `/api/*` routes to Render.
+
+For local authentication, run both the frontend and Flask API. Vite defaults to the Flask server at `http://127.0.0.1:5000`. If port 5000 is occupied (common on macOS), use two terminals:
+
+```bash
+.venv/bin/python -m flask --app app run --port 5001
+```
+
+```bash
+API_PROXY_TARGET=http://127.0.0.1:5001 npm run dev
+```
+
+The Flask process needs the existing `SECRET_KEY` and `DATABASE_URL` configuration. If the API cannot be reached during the initial session check, the landing, login, and signup pages remain available. Home stays protected behind a session retry screen, and failed login/signup requests show errors on their forms.
+
+Run `npm run test:auth` for API-client contract tests and `.venv/bin/python -m unittest discover -s tests -v` for backend auth/session tests. These checks use isolated mocks and never access the project database.
 
 The onboarding notes below describe the earlier scaffold and planned backend architecture; the landing page above supersedes references to the sample Home and About screens.
 

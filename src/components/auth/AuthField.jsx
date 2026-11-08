@@ -31,7 +31,7 @@ export default function AuthField({ label, name, type = "text", error, hint, ...
           {...props}
         />
         {isPassword && (
-          <button className="absolute inset-y-0 right-0 flex items-center gap-1.5 rounded-r px-3 text-xs text-[#c9b7ac] transition-colors hover:text-white motion-reduce:transition-none" type="button" onClick={() => setVisible(!visible)} aria-label={`${visible ? "Hide" : "Show"} ${label.toLowerCase()}`} aria-pressed={visible}>
+          <button className="absolute inset-y-0 right-0 flex items-center gap-1.5 rounded-r px-3 text-xs text-[#c9b7ac] transition-colors hover:text-white disabled:cursor-wait disabled:opacity-50 motion-reduce:transition-none" type="button" onClick={() => setVisible(!visible)} disabled={props.disabled} aria-label={`${visible ? "Hide" : "Show"} ${label.toLowerCase()}`} aria-pressed={visible}>
             <VisibilityIcon visible={visible} />
             <span>{visible ? "Hide" : "Show"}</span>
           </button>
