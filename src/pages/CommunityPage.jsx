@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "../components/auth/AuthProvider";
 import ForumLayout, { BluePlanet, LoadError, LoadingCards, primaryButton, secondaryButton } from "../components/forum/ForumLayout";
+import SelectControl from "../components/forum/SelectControl";
 import PostCard from "../components/forum/PostCard";
 import { Icon } from "../components/landing/visuals";
 import { forumApi } from "../lib/forum";
@@ -98,9 +99,9 @@ function CommunityContent({ communityId }) {
         </div>
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <label htmlFor="community-post-sort" className="shrink-0 text-sm text-[#a5aabc]">Sort community posts</label>
-          <select id="community-post-sort" value={sort} onChange={(event) => setSort(event.target.value)} className="min-h-11 w-full min-w-0 rounded-lg border border-white/15 bg-[#13151f] px-3 py-2 text-sm leading-5 sm:w-auto">
+          <SelectControl id="community-post-sort" value={sort} onChange={(event) => setSort(event.target.value)}>
             <option value="new">Newest</option><option value="top">Top Voted Post</option><option value="discussed">Most Discussed</option>
-          </select>
+          </SelectControl>
         </div>
         {postsLoading ? <LoadingCards /> : postsError ? <LoadError message={postsError} onRetry={() => setPostsRetry((value) => value + 1)} /> : !posts.length ? <div className="rounded-xl border border-dashed border-white/15 bg-[#11131b]/90 p-9 text-center"><Icon name="chat" size={32} className="mx-auto text-[#9db5d2]" /><h3 className="mt-4 text-lg font-medium">The first signal is still to come.</h3><p className="mt-3 text-sm text-[#aeb5c7]">This community doesn’t have any public posts yet.</p></div> : <div className="space-y-4">{posts.map((post) => <PostCard key={post.id} post={post} />)}</div>}
       </section>

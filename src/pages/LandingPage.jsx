@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useAuth } from "../components/auth/AuthProvider";
 import AuthButtons from "../components/landing/AuthButtons";
+import SelectControl from "../components/forum/SelectControl";
 import ForumDialog from "../app/ForumDialog";
 import CommunityPosts from "../components/landing/CommunityPosts";
 import { forumApi } from "../lib/forum";
@@ -413,9 +414,9 @@ export default function LandingPage({ returnFromSurface = null }) {
                 </div>
                 <button className={`${coralButton} mb-4`} onClick={() => openUniverse(community, true)}>Create a post</button>
                 <label className="mb-4 flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:gap-3">Sort community posts
-                  <select value={postSort} onChange={(event) => { setPostSort(event.target.value); }} className="min-h-11 w-full min-w-0 rounded border border-[#45383f] bg-[#171417] px-3 py-2 text-sm leading-5 sm:w-auto">
+                  <SelectControl value={postSort} onChange={(event) => setPostSort(event.target.value)} className="border-[#45383f] bg-[#171417]">
                     <option value="newest">Newest</option><option value="top">Top Voted Post</option><option value="discussed">Most Discussed</option>
-                  </select>
+                  </SelectControl>
                 </label>
                 {community.apiId ? <CommunityPosts key={community.id} communityId={community.apiId} sort={postSort} /> : community.posts.map((post, index) => ({ post, index })).sort((a, b) => postSort === "top"
                   ? ([42, 28][b.index] + (votes[`${community.id}-${b.index}`] || 0)) - ([42, 28][a.index] + (votes[`${community.id}-${a.index}`] || 0))

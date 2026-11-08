@@ -390,7 +390,7 @@ Before starting the updated backend:
 2. Apply `migrations/001_votes.sql` if not already applied, then
    `migrations/20261108_astrobot.sql` to the existing database.
 3. Configure backend-only `GEMINI_API_KEY` (or `GOOGLE_API_KEY`), `DATABASE_URL`,
-   and `SECRET_KEY`. `GEMINI_MODEL` defaults to `gemini-2.5-flash`.
+   and `SECRET_KEY`. `GEMINI_MODEL` defaults to `gemini-3.8-flash`.
 
 Optional backend settings: `ASTROBOT_CHAT_LIMIT_15M=10`,
 `ASTROBOT_CHAT_LIMIT_DAILY=250`, `ASTROBOT_MENTION_LIMIT_15M=8`,
@@ -420,3 +420,20 @@ The AstroBot integration registers mention status and creation hooks without
 registering a second chat endpoint. Its dock supports the full `/posts/:id` pages;
 public replies refresh the discussion without navigating away. Apply all migrations
 in the order documented in `migrations/README.md` before enabling the full feature set.
+
+
+### AstroBot diagnostics and error messages
+
+Run `.venv/Scripts/python.exe scripts/check_astrobot.py` for read-only configuration
+and schema checks. Add `--models` to list models available to the configured key;
+`--probe` sends one small, real generation request and may consume provider quota.
+The helper redacts configured secrets from diagnostics.
+
+The default model is `gemini-3.8-flash`; override it with backend `GEMINI_MODEL`.
+Direct chat and public mentions share the same bounded Gemini client. Automatic
+provider retries are disabled. Responses distinguish daily AI quota exhaustion,
+short-term rate/usage limits, unavailable models, incorrect configuration,
+timeouts, empty answers, and unavailable request-limit storage. `Retry-After` uses
+the actual reset time when supplied by the provider or the application limiter.
+An exhausted provider quota must reset or be increased in the Gemini project
+before real chat and mention generation can succeed.

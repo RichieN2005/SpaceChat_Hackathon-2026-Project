@@ -7,6 +7,7 @@ import re
 from flask import Blueprint, jsonify, request
 
 from . import service, storage
+from api.aiService.ai_service import AstroBotError
 
 logger = logging.getLogger(__name__)
 astrobot_bp = Blueprint("astrobot", __name__)
@@ -33,9 +34,9 @@ def chat_request():
         return error_json("Message must be at most 1600 characters", 400)
     try:
         storage.enforce_quota(storage.public_client_key(request))
-    except storage.LimitReached:
-        response = error_json("AstroBot is busy. Try again later.", 429)
-        response.headers["Retry-After"] = "900"
+    except storage.LimitReached as exc:
+        response = error_json(exc.public_message, 429)
+        response.headers["Retry-After"] = str(exc.retry_after)
         return response
     except Exception:
         logger.exception("AstroBot request limiter unavailable")
@@ -43,6 +44,12 @@ def chat_request():
     try:
         answer = service.generate_reply(message)
         return jsonify({"sender": "AstroBot", "is_ai": True, "response": answer})
+    except AstroBotError as exc:
+        response = jsonify(error=str(exc), code=exc.code)
+        response.status_code = exc.status
+        if exc.retry_after:
+            response.headers["Retry-After"] = str(exc.retry_after)
+        return response
     except RuntimeError as exc:
         if "not configured" in str(exc):
             logger.error("Gemini credentials are not configured")

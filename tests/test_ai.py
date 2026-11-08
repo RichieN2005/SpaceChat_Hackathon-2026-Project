@@ -28,6 +28,9 @@ class AstroBotRoutesTest(unittest.TestCase):
             spec.loader.exec_module(self.module)
         self.module.app.testing = True
         self.client = self.module.app.test_client()
+        env = patch.dict("os.environ", {"GEMINI_API_KEY": "test-api-key"})
+        env.start()
+        self.addCleanup(env.stop)
         quota = patch("api.astrobot.storage.enforce_quota")
         quota.start()
         self.addCleanup(quota.stop)
@@ -111,7 +114,9 @@ class AstroBotRoutesTest(unittest.TestCase):
         self.assertNotIn("private-provider-details-and-key", logs)
         self.assertNotIn("private-provider-details-and-key", response.get_data(as_text=True))
         self.provider.models.generate_content.assert_called_once()
-        self.constructor.assert_called_once_with()
+        self.constructor.assert_called_once()
+        self.assertEqual(self.constructor.call_args.kwargs["api_key"], "test-api-key")
+        self.assertEqual(self.constructor.call_args.kwargs["http_options"].timeout, 20000)
 
     def test_configuration_failures_have_safe_server_diagnostics(self):
         self.login()
@@ -130,7 +135,7 @@ class AstroBotRoutesTest(unittest.TestCase):
                 self.provider.models.generate_content.side_effect = errors.ClientError(status, {"error": {"message": "private-provider-detail"}})
                 response = self.client.post("/api/ai/chat", json={"message": "Hello"})
                 self.assertEqual(response.status_code, 503)
-                self.assertEqual(response.get_json()["code"], "ai_configuration")
+                self.assertEqual(response.get_json()["code"], "ai_model_unavailable" if status == 404 else "ai_configuration")
                 self.assertNotIn("private-provider-detail", response.get_data(as_text=True))
                 with self.client.session_transaction() as session:
                     self.assertEqual(session["user_id"], 7)
@@ -152,12 +157,42 @@ class AstroBotRoutesTest(unittest.TestCase):
                 self.provider.models.generate_content.assert_called_once()
                 self.assertNotIn("private-", response.get_data(as_text=True))
 
-    def test_empty_provider_text_is_a_safe_unavailable_response(self):
+    def test_empty_provider_text_has_actionable_message(self):
         self.login()
         self.provider.models.generate_content.return_value = SimpleNamespace(text="   ")
         response = self.client.post("/api/ai/chat", json={"message": "Hello"})
         self.assertEqual(response.status_code, 503)
-        self.assertEqual(response.get_json()["code"], "ai_unavailable")
+        self.assertEqual(response.get_json()["code"], "ai_empty_response")
+
+    def test_daily_provider_quota_has_distinct_message_and_actual_retry_time(self):
+        self.login()
+        self.provider.models.generate_content.side_effect = errors.ClientError(429, {"error": {
+            "message": "Requests per day limit exceeded; private-provider-detail",
+            "details": [{"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "3600.5s"}],
+        }})
+        response = self.client.post("/api/ai/chat", json={"message": "Hello"})
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.json["code"], "ai_daily_usage_limit")
+        self.assertIn("daily", response.json["error"])
+        self.assertEqual(response.headers["Retry-After"], "3601")
+        self.assertNotIn("private-provider-detail", response.get_data(as_text=True))
+
+    def test_app_daily_limit_does_not_claim_fifteen_minute_reset(self):
+        from api.astrobot.storage import LimitReached
+        self.login()
+        with patch("api.astrobot.storage.enforce_quota", side_effect=LimitReached(scope="global", retry_after=18000)):
+            response = self.client.post("/api/ai/chat", json={"message": "Hello"})
+        self.assertIn("daily", response.json["error"])
+        self.assertEqual(response.headers["Retry-After"], "18000")
+        self.constructor.assert_not_called()
+
+    def test_upstream_deadline_is_a_clear_timeout(self):
+        self.login()
+        self.provider.models.generate_content.side_effect = errors.ServerError(504, {"error": {"message": "private-provider-detail"}})
+        response = self.client.post("/api/ai/chat", json={"message": "Hello"})
+        self.assertEqual(response.status_code, 504)
+        self.assertEqual(response.json["code"], "ai_timeout")
+        self.assertIn("too long", response.json["error"])
 
     def test_model_can_be_selected_without_changing_code(self):
         self.login()

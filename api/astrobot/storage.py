@@ -11,7 +11,16 @@ BOT_EMAIL = "astrobot@spacechat.invalid"
 
 
 class LimitReached(Exception):
-    pass
+    def __init__(self, message="AstroBot's request limit has been reached", *, retry_after=900, scope="client"):
+        super().__init__(message)
+        self.retry_after = retry_after
+        self.scope = scope
+
+    @property
+    def public_message(self):
+        if self.scope == "global":
+            return "AstroBot has reached its daily request limit. Please try again when the limit resets."
+        return "You have reached AstroBot's short-term request limit. Please wait before sending another message."
 
 
 @contextmanager
@@ -78,7 +87,7 @@ def enforce_quota(client_key: str, *, is_mention: bool = False) -> None:
                     # Rolling back refunds the per-user slot if the global
                     # quota failed. No Gemini request has been sent.
                     conn.rollback()
-                    raise LimitReached("AstroBot's request limit has been reached")
+                    raise LimitReached(retry_after=(global_period if bucket_key.endswith(":global") else period) - now % (global_period if bucket_key.endswith(":global") else period), scope="global" if bucket_key.endswith(":global") else "client")
 
 
 def reserve_mention(kind: str, source_id: int) -> bool:

@@ -59,11 +59,9 @@ export default function AstroBotChat({ postId = null, onThreadReply, inDialog = 
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(
-          response.status === 429
-            ? 'AstroBot is at its request limit. Try again in about 15 minutes.'
-            : data.error || 'Unable to reach AstroBot.'
-        );
+        throw new Error(data.error || (response.status === 429
+          ? "AstroBot has reached a request or usage limit. Please try again later."
+          : response.status === 401 ? "Log in to chat with AstroBot." : "Unable to reach AstroBot. Please try again shortly."));
       }
       setMessage('');
       setHistory((old) => [...old, { from: 'bot', text: data.response || 'No response received.' }]);

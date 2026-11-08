@@ -207,7 +207,7 @@ class AppAvailabilityTest(unittest.TestCase):
             response = client.post("/api/ai/chat", json={"message": "Hello"})
             self.assertEqual(response.status_code, 503)
             self.assertNotIn("No API key", response.get_json()["error"])
-            constructor.assert_called_once_with()
+            constructor.assert_not_called()
 
 
 if __name__ == "__main__":
