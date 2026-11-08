@@ -1,0 +1,59 @@
+[1mdiff --git a/api/health.py b/api/health.py[m
+[1mindex 49ec2e5..e69de29 100644[m
+[1m--- a/api/health.py[m
+[1m+++ b/api/health.py[m
+[36m@@ -1,54 +0,0 @@[m
+[31m-[m
+[31m-from flask import Blueprint, jsonify, current_app[m
+[31m-from api.database import get_db_connection[m
+[31m-[m
+[31m-# Group all health-related endpoints under /api.[m
+[31m-health_bp = Blueprint([m
+[31m-    "health",[m
+[31m-    __name__,[m
+[31m-    url_prefix="/api"[m
+[31m-)[m
+[31m-[m
+[31m-[m
+[31m-@health_bp.route("/health", methods=["GET"])[m
+[31m-def health_check():[m
+[31m-    """[m
+[31m-    Verify that the Flask application is responding.[m
+[31m-[m
+[31m-    Used by Render monitoring and GitHub Actions.[m
+[31m-    Does not require a database connection.[m
+[31m-    """[m
+[31m-    return jsonify({[m
+[31m-        "status": "ok",[m
+[31m-        "message": "Flask is running"[m
+[31m-    }), 200[m
+[31m-[m
+[31m-[m
+[31m-@health_bp.route("/db-health", methods=["GET"])[m
+[31m-def database_health():[m
+[31m-    """[m
+[31m-    Verify connectivity to TigerData PostgreSQL.[m
+[31m-[m
+[31m-    Executes SELECT 1 to test database communication.[m
+[31m-    """[m
+[31m-    try:[m
+[31m-        with get_db_connection() as conn:[m
+[31m-            with conn.cursor() as cursor:[m
+[31m-                cursor.execute("SELECT 1;")[m
+[31m-                result = cursor.fetchone()[m
+[31m-[m
+[31m-        if result and result[0] == 1:[m
+[31m-            return jsonify({[m
+[31m-                "status": "connected",[m
+[31m-                "database": "TigerData"[m
+[31m-            }), 200[m
+[31m-[m
+[31m-    except Exception:[m
+[31m-        current_app.logger.exception([m
+[31m-            "Database health check failed"[m
+[31m-        )[m
+[31m-[m
+[31m-    return jsonify({[m
+[31m-        "status": "error",[m
+[31m-        "message": "Database unavailable"[m
+[31m-    }), 503[m

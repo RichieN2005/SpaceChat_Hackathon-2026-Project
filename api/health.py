@@ -1,4 +1,3 @@
-
 from flask import Blueprint, jsonify, current_app
 from api.database import get_db_connection
 
