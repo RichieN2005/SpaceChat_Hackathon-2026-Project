@@ -1,8 +1,7 @@
 import os
-from flask import Flask, request, jsonify
+
+from flask import Flask, jsonify
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
 
 from api.auth.routes import auth
 from api.comments.routes import comments
@@ -17,55 +16,18 @@ load_dotenv()
 
 # Initialize Flask.
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 128 * 1024
 
 # Configure Flask's secret key.
 app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
 
-# --- Gemini AI Setup ---
-client = genai.Client()
 
-def ask_space_bot(user_message: str) -> str:
-    """
-    Sends a prompt to Gemini with system instructions to enforce a space theme.
-    """
-    system_instruction = (
-        "You are 'AstroBot', an AI communications officer aboard an interstellar orbital station. "
-        "You must respond to every prompt using space-themed terminology, cosmic metaphors, "
-        "and sci-fi flair (e.g., addressing users as 'Earthling', referring to data as 'telemetry', "
-        "and formatting your sign-offs like 'End transmission'). Keep the core answers accurate "
-        "while maintaining this immersive persona."
-    )
+@app.errorhandler(413)
+def request_too_large(_error):
+    return jsonify(error="Request body must be at most 128 KiB"), 413
 
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=user_message,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.7,
-            ),
-        )
-        return response.text
-    except Exception as e:
-        return f"Warning: Communications link failure to orbital array. Error: {str(e)}"
 
-@app.route('/api/ai/chat', methods=['POST'])
-def chat_with_spacebot():
-    data = request.get_json() or {}
-    user_message = data.get('message', '')
-    
-    if not user_message:
-        return jsonify({"error": "No telemetry payload (message) provided."}), 400
-
-    bot_response = ask_space_bot(user_message)
-    
-    return jsonify({
-        "sender": "AstroBot",
-        "response": bot_response
-    })
-# -----------------------
-
-# Register all other API endpoints.
+# Register API modules. Keep the endpoint /api/ai/chat unchanged.
 app.register_blueprint(health_bp)
 app.register_blueprint(auth)
 app.register_blueprint(users)
@@ -76,6 +38,5 @@ app.register_blueprint(votes)
 
 
 if __name__ == "__main__":
-    # Local development server only.
-    # Render uses Gunicorn instead.
+    # Local development server only. Render uses Gunicorn app:app.
     app.run(debug=True)

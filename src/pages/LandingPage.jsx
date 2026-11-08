@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import ForumDialog from "../app/ForumDialog";
+import { useAuth } from "../components/auth/AuthProvider";
 import AuthButtons from "../components/landing/AuthButtons";
+import PopularCommunities from "../components/landing/PopularCommunities";
 import PlanetTransition from "../components/landing/PlanetTransition";
 import { captureMoonGeometry } from "../components/landing/orbitGeometry";
 import {
@@ -106,6 +107,8 @@ function SectionLabel({ number, children, className = "" }) {
 export default function LandingPage({ returnFromSurface = null }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { status } = useAuth();
+  const showAuth = status === "anonymous" || status === "error";
   const [returnMode] = useState(returnFromSurface);
   const [isReturning, setIsReturning] = useState(Boolean(returnMode));
   const returnStartedRef = useRef(false);
@@ -122,7 +125,6 @@ export default function LandingPage({ returnFromSurface = null }) {
     return () => controller.abort();
   }, []);
   const [activeCommunity, setActiveCommunity] = useState(0);
-  const [selectedCommunity, setSelectedCommunity] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [departure, setDeparture] = useState(null);
   const [votes, setVotes] = useState({});
@@ -148,11 +150,11 @@ export default function LandingPage({ returnFromSurface = null }) {
   function openUniverse(item = community, compose = false) {
     setInitiallyComposing(compose);
     setMenuOpen(false);
-    setSelectedCommunity(item);
+    navigate("/");
   }
 
   function handleAuthAction(action) {
-    if (departingRef.current || isReturning) return;
+    if (!showAuth || departingRef.current || isReturning) return;
     const route = action === "login" ? "/login" : "/signup";
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       navigate(route, { state: { fromOrbit: true } });
@@ -234,10 +236,10 @@ export default function LandingPage({ returnFromSurface = null }) {
                   {label}
                 </a>
               ))}
-              <AuthButtons
+              {showAuth && <AuthButtons
                 onAction={handleAuthAction}
                 className="mt-3 flex border-t border-[#30272b] pt-4 min-[701px]:hidden"
-              />
+              />}
             </nav>
             <div className="ml-auto flex shrink-0 items-center gap-[13px] min-[701px]:ml-0 min-[961px]:gap-5 max-[371px]:gap-[9px]">
               <button
@@ -248,7 +250,7 @@ export default function LandingPage({ returnFromSurface = null }) {
                 Enter the universe
                 <Icon name="diagonal" size={16} className="text-signal max-[701px]:w-[13px]" />
               </button>
-              <AuthButtons onAction={handleAuthAction} className="hidden min-[701px]:flex" />
+              {showAuth && <AuthButtons onAction={handleAuthAction} className="hidden min-[701px]:flex" />}
               <button
                 type="button"
                 className="bg-transparent py-[9px] pl-[5px] min-[701px]:hidden"
@@ -301,6 +303,7 @@ export default function LandingPage({ returnFromSurface = null }) {
               </div>
             </div>
             <MoonScene
+              showAuth={showAuth}
               onAuthNavigate={handleAuthAction}
               imageRef={moonImageRef}
               isDeparting={Boolean(departure)}
@@ -338,6 +341,7 @@ export default function LandingPage({ returnFromSurface = null }) {
 
         <main>
           <section id="universe" className={`${pageWidth} py-[65px] min-[701px]:py-20 min-[961px]:pt-[105px] min-[961px]:pb-[100px]`} aria-labelledby="universe-title">
+            {status === "authenticated" ? <PopularCommunities /> : <>
             <div className="mb-[29px] min-[701px]:mb-[43px] min-[701px]:flex min-[701px]:items-end min-[701px]:justify-between min-[701px]:gap-[30px] min-[961px]:gap-10">
               <div>
                 <SectionLabel number="01" className="mb-5 min-[701px]:mb-[22px]">FIND YOUR CORNER OF THE COSMOS</SectionLabel>
@@ -439,6 +443,7 @@ export default function LandingPage({ returnFromSurface = null }) {
                 </button>
               </div>
             </div>
+            </>}
           </section>
 
           <section id="how-it-works" className="border-y border-[#272429] bg-[#101012] py-[58px] min-[701px]:pt-[73px] min-[701px]:pb-20" aria-labelledby="how-title">

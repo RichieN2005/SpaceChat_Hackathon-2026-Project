@@ -43,6 +43,8 @@ def create_comment(post_id):
     parent_id = data.get("parent_comment_id")
     if not isinstance(body, str) or not body.strip():
         return error("Body is required", 400)
+    if len(body) > 10000:
+        return error("Body must be at most 10000 characters", 400)
     if parent_id is not None and not valid_id(parent_id):
         return error("parent_comment_id must be a positive integer or null", 400)
 
@@ -51,6 +53,14 @@ def create_comment(post_id):
             cursor.execute("SELECT id FROM public.posts WHERE id = %s FOR KEY SHARE", (post_id,))
             if cursor.fetchone() is None:
                 return error("Post not found", 404)
+
+            if parent_id is not None:
+                cursor.execute(
+                    "SELECT id FROM public.comments WHERE id = %s AND post_id = %s FOR KEY SHARE",
+                    (parent_id, post_id),
+                )
+                if cursor.fetchone() is None:
+                    return error("Parent comment must belong to this post", 400)
 
             cursor.execute(
                 """
@@ -71,6 +81,32 @@ def create_comment(post_id):
     return jsonify(serialize(comment)), 201
 
 
+@comments.patch("/comments/<int:comment_id>")
+@login_required
+def update_comment(comment_id):
+    if not valid_id(comment_id):
+        return error("Comment not found", 404)
+    body = json_object().get("body")
+    if not isinstance(body, str) or not body.strip() or len(body) > 10000:
+        return error("Body must contain 1 to 10000 characters", 400)
+    with database_cursor() as cursor:
+        cursor.execute("SELECT author_id, body FROM public.comments WHERE id = %s FOR UPDATE", (comment_id,))
+        existing = cursor.fetchone()
+        if existing is None:
+            return error("Comment not found", 404)
+        if existing["author_id"] != g.user_id:
+            return error("Forbidden", 403)
+        if existing["body"] == "[deleted]":
+            return error("Deleted comments cannot be edited", 409)
+        cursor.execute(
+            """UPDATE public.comments SET body = %s WHERE id = %s
+               RETURNING id, post_id, author_id, parent_comment_id, body, created_at""",
+            (body, comment_id),
+        )
+        comment = cursor.fetchone()
+    return jsonify(serialize(comment))
+
+
 @comments.delete("/comments/<int:comment_id>")
 @login_required
 def delete_comment(comment_id):
@@ -88,8 +124,12 @@ def delete_comment(comment_id):
                 return error("Comment not found", 404)
             if comment["author_id"] != g.user_id:
                 return error("Forbidden", 403)
-            cursor.execute("DELETE FROM public.comments WHERE id = %s", (comment_id,))
+            cursor.execute("SELECT id FROM public.comments WHERE parent_comment_id = %s LIMIT 1", (comment_id,))
+            if cursor.fetchone() is not None:
+                cursor.execute("UPDATE public.comments SET body = '[deleted]' WHERE id = %s", (comment_id,))
+            else:
+                cursor.execute("DELETE FROM public.comments WHERE id = %s", (comment_id,))
     except ForeignKeyViolation:
-        return error("Cannot delete a comment that still has replies", 409)
+        return error("Comment is still referenced by another record", 409)
 
     return "", 204
