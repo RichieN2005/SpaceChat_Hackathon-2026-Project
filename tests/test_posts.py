@@ -156,8 +156,8 @@ class PublicContentRoutesTest(unittest.TestCase):
         self.assertIsNone(comment["parent_comment_id"])
         query, parameters = self.comment_cursor.execute.call_args.args
         self.assertIn("LEFT JOIN public.users", query)
-        self.assertIn("ORDER BY c.created_at, c.id", query)
-        self.assertEqual(parameters, (9,))
+        self.assertIn("ORDER BY upvotes DESC, c.created_at DESC, c.id DESC", query)
+        self.assertEqual(parameters, (None, 9))
 
     def test_comments_for_missing_post_are_not_found(self):
         self.comment_cursor.fetchone.return_value = None
@@ -191,6 +191,8 @@ class AppAvailabilityTest(unittest.TestCase):
             patch("dotenv.load_dotenv", return_value=False),
             patch("google.genai.Client", side_effect=ValueError("No API key configured")) as constructor,
             patch("api.common.get_db_connection", side_effect=AssertionError("Database access forbidden")),
+            patch("api.astrobot.storage.enforce_quota"),
+            patch("api.astrobot.storage.public_client_key", return_value="test-client"),
             patch.dict(sys.modules, {name: module}),
         ):
             spec.loader.exec_module(module)

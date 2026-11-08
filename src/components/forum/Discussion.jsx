@@ -1,3 +1,4 @@
+import AstroBotReplyWatcher from "../AstroBotReplyWatcher";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../auth/AuthProvider";
@@ -106,6 +107,7 @@ function Comment({ comment, depth, authenticated, isAuthor, checkingSession, dis
         <span aria-hidden="true">·</span>
         <time dateTime={comment.created_at} title={new Date(comment.created_at).toLocaleString()}>{relativeTime(comment.created_at)}</time>
         {depth > 0 && <span className="text-[#8996ac]">· Reply</span>}
+        {comment.is_bot && <span className="rounded bg-indigo-500/25 px-2 py-0.5 text-indigo-200">AI bot</span>}
         {isAuthor && !deleted && <span className="rounded bg-white/5 px-1.5 py-0.5 text-[#a6bddc]">You</span>}
       </div>
       {mode === "edit" && isAuthor && !deleted ? <div className="mt-4"><CommentForm label="Edit your comment" initialBody={comment.body} submitLabel="Save changes" pendingLabel="Saving…" disabled={disabled} onCancel={() => setMode(null)} onLogin={onLogin} autoFocus onSave={async (body) => { await onEdit(comment.id, body); setMode(null); }} /></div> : <p className={`mt-2.5 whitespace-pre-wrap text-sm leading-[1.9] [overflow-wrap:anywhere] ${deleted ? "italic text-[#8993a5]" : "text-[#c5c8d4]"}`}>{comment.body}</p>}
@@ -169,6 +171,12 @@ function DiscussionThread({ postId, onCountChange }) {
     return () => { mounted.current = false; readId.current += 1; readController.current?.abort(); };
   }, [reload]);
 
+  useEffect(() => {
+    const refresh = () => { reload(); };
+    window.addEventListener("astrobot:reply", refresh);
+    return () => window.removeEventListener("astrobot:reply", refresh);
+  }, [reload]);
+
   async function login() {
     // A write can discover an expired server session before the page does.
     // Recheck before entering a guest-only route with stale auth state.
@@ -197,7 +205,8 @@ function DiscussionThread({ postId, onCountChange }) {
   }
 
   return <section id="comments" aria-labelledby="comments-title" className="scroll-mt-[300px] rounded-xl border border-white/10 bg-[#11131b]/95 p-5 min-[400px]:scroll-mt-[220px] md:scroll-mt-[160px] sm:p-7">
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h2 id="comments-title" className="text-xl font-medium">The conversation {!loading && !error && <span className="ml-1 text-sm text-[#929bad]">({comments.length})</span>}</h2><span className="text-xs text-[#939bad]">Oldest first</span></div>
+    <AstroBotReplyWatcher postId={postId} onBotReply={reload} />
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h2 id="comments-title" className="text-xl font-medium">The conversation {!loading && !error && <span className="ml-1 text-sm text-[#929bad]">({comments.length})</span>}</h2><span className="text-xs text-[#939bad]">Most upvoted, then newest</span></div>
     {authenticated ? <div className="mb-7 border-b border-white/10 pb-6"><CommentForm label={`Join the conversation as u/${user.username}`} submitLabel="Send comment" pendingLabel="Sending…" disabled={pending || loading} onLogin={login} onSave={(body) => mutate(() => forumApi.createComment(postId, { body, parent_comment_id: null }), "Your comment was sent.")} /></div> : status === "loading" ? <p role="status" className="mb-6 text-sm text-[#9ca9be]">Checking your signal…</p> : <div className="mb-7 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-white/10 bg-white/2 p-4"><p className="text-sm leading-relaxed text-[#b6c0d2]">There’s room for your perspective, too.</p><button type="button" onClick={login} className={secondaryButton}>Log in to comment <Icon name="diagonal" size={15} /></button></div>}
     {notice && <p role="status" className="mb-5 rounded-lg border border-[#87bca5]/25 bg-[#14241f]/60 p-3 text-sm leading-relaxed text-[#b7ddca]">{notice}</p>}
     {loading && <p role="status" className="py-4 text-sm text-[#adb3c4]">{comments.length ? "Refreshing the conversation…" : "Receiving replies…"}</p>}

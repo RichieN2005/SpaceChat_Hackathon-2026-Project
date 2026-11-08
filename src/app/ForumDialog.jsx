@@ -1,5 +1,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 
+import AstroBotChat from "../components/AstroBotChat";
+import AstroBotReplyWatcher from "../components/AstroBotReplyWatcher";
+
 const buttonStyles = "inline-flex cursor-pointer items-center justify-center gap-[7px] whitespace-nowrap transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal disabled:cursor-default disabled:opacity-40 motion-reduce:transition-none";
 const inputStyles = "w-full min-w-0 rounded-md border border-[#3a3032] bg-[#151113] px-3 py-[11px] text-base leading-[1.6] text-[#eee3df] placeholder:text-[#8e8286] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal";
 const submitStyles = `${buttonStyles} shrink-0 rounded-md border border-[#a9543c] bg-signal px-3 py-2 text-[13px] font-semibold text-[#160d0a] enabled:hover:bg-[#ff8b70]`;
@@ -102,6 +105,7 @@ function Post({ post, onVote, onReply, onCommentVote, detailsOpen, onOpen, onBac
             {post.comments.length ? [...post.comments].sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0) || new Date(b.created_at || 0) - new Date(a.created_at || 0) || String(b.id).localeCompare(String(a.id))).map((comment) => (
               <div data-selectable className="cursor-text mb-[17px]" key={comment.id}>
                 <strong className="text-[12px] font-medium text-[#d5bbb2]">u/{comment.author}</strong>
+                {comment.is_bot && <span className="ml-2 rounded bg-indigo-500/25 px-2 py-0.5 text-xs text-indigo-200">AI bot</span>}
                 <p className="mt-[5px] text-xs leading-[1.75] wrap-anywhere text-[#a99fa1]">{comment.text}</p>
                 {[1, -1].map((direction) => <button key={direction} type="button" className={`${buttonStyles} mr-3 text-xs ${comment.user_vote === direction ? "text-signal" : "text-[#aaa]"}`} aria-label={`${direction === 1 ? "Upvote" : "Downvote"} comment by ${comment.author}`} aria-pressed={comment.user_vote === direction} onClick={() => onCommentVote(post.id, comment.id, direction)}>{direction === 1 ? "\u2191" : "\u2193"} {direction === 1 ? comment.upvotes || 0 : comment.downvotes || 0}</button>)}
               </div>
@@ -148,7 +152,7 @@ export default function ForumDialog({ community, onClose, initiallyComposing = f
   }
   async function loadPosts() {
     const rows = await api(`/posts?subreddit_id=${community.apiId}&sort=${sort}`);
-    const loaded = await Promise.all(rows.map(async (post) => ({ ...post, avatar: "*", time: new Date(post.created_at).toLocaleString(), tag: "Discussion", comments: (await api(`/posts/${post.id}/comments`)).map((comment) => ({ ...comment, text: comment.body })) })));
+    const loaded = await Promise.all(rows.map(async (post) => ({ ...post, author: post.author_username || post.author, avatar: "*", time: new Date(post.created_at).toLocaleString(), tag: "Discussion", comments: (await api(`/posts/${post.id}/comments`)).map((comment) => ({ ...comment, author: comment.author_username || comment.author, text: comment.body })) })));
     setPosts(loaded);
   }
   useEffect(() => {
@@ -158,7 +162,7 @@ export default function ForumDialog({ community, onClose, initiallyComposing = f
     (async () => {
       try {
         const rows = await api(`/posts?subreddit_id=${community.apiId}&sort=${sort}`);
-        const loaded = await Promise.all(rows.map(async (post) => ({ ...post, avatar: "*", time: new Date(post.created_at).toLocaleString(), tag: "Discussion", comments: (await api(`/posts/${post.id}/comments`)).map((comment) => ({ ...comment, text: comment.body })) })));
+        const loaded = await Promise.all(rows.map(async (post) => ({ ...post, author: post.author_username || post.author, avatar: "*", time: new Date(post.created_at).toLocaleString(), tag: "Discussion", comments: (await api(`/posts/${post.id}/comments`)).map((comment) => ({ ...comment, author: comment.author_username || comment.author, text: comment.body })) })));
         if (active) setPosts(loaded);
       } catch (error) { if (active) setNotice(error.message); }
       finally { if (active) setLoading(false); }
@@ -343,6 +347,8 @@ export default function ForumDialog({ community, onClose, initiallyComposing = f
             <Icon name="orbit" className="size-[18px] text-[#d48068]" />Different planets. Same curiosity.
           </footer>
         </div>
+        <AstroBotChat inDialog postId={community.apiId ? selectedPostId : null} onThreadReply={loadPosts} />
+        {community.apiId && selectedPostId && <AstroBotReplyWatcher postId={selectedPostId} onBotReply={loadPosts} />}
       </section>
     </div>
   );

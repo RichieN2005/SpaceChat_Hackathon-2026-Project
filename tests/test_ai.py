@@ -28,10 +28,33 @@ class AstroBotRoutesTest(unittest.TestCase):
             spec.loader.exec_module(self.module)
         self.module.app.testing = True
         self.client = self.module.app.test_client()
+        quota = patch("api.astrobot.storage.enforce_quota")
+        quota.start()
+        self.addCleanup(quota.stop)
+        key = patch("api.astrobot.storage.public_client_key", return_value="test-client")
+        key.start()
+        self.addCleanup(key.stop)
 
     def login(self):
         with self.client.session_transaction() as session:
             session["user_id"] = 7
+
+    def test_shared_quota_rejects_before_provider_call(self):
+        from api.astrobot.storage import LimitReached
+        self.login()
+        with patch("api.astrobot.storage.enforce_quota", side_effect=LimitReached):
+            response = self.client.post("/api/ai/chat", json={"message": "Hello"})
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.headers["Retry-After"], "900")
+        self.constructor.assert_not_called()
+
+    def test_chat_fails_closed_when_quota_database_is_unavailable(self):
+        self.login()
+        with patch("api.astrobot.storage.enforce_quota", side_effect=RuntimeError("private-db-detail")):
+            response = self.client.post("/api/ai/chat", json={"message": "Hello"})
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn("private-db-detail", response.get_data(as_text=True))
+        self.constructor.assert_not_called()
 
     def test_ai_blueprint_is_registered_once_without_public_alias(self):
         ai_rules = [rule for rule in self.module.app.url_map.iter_rules()

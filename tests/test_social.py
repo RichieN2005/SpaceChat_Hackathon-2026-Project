@@ -187,13 +187,13 @@ class SocialRoutesTest(unittest.TestCase):
             elif "SUM(value)" in query:
                 current_user, post_id = parameters
                 result.clear()
-                result.update(score=sum(value for (owner, post), value in state.items() if post == post_id), user_vote=state.get((current_user, post_id), 0))
+                result.update(score=sum(value for (owner, post), value in state.items() if post == post_id), user_vote=state.get((current_user, post_id), 0), upvotes=sum(v == 1 for (owner, post), v in state.items() if post == post_id), downvotes=sum(v == -1 for (owner, post), v in state.items() if post == post_id))
         cursor.execute.side_effect = execute
         cursor.fetchone.side_effect = lambda: result.copy()
         for value, score in ((1, 2), (1, 2), (-1, 0), (0, 1), (0, 1)):
             with self.subTest(value=value):
                 response = self.client.put("/api/posts/9/vote", json={"value": value, "user_id": 999})
-                self.assertEqual(response.get_json(), {"score": score, "user_vote": value})
+                self.assertEqual(response.get_json(), {"score": score, "user_vote": value, "upvotes": sum(v == 1 for v in state.values()), "downvotes": sum(v == -1 for v in state.values())})
         self.assertNotIn((999, 9), state)
 
     def test_vote_missing_post_and_missing_migration_are_clear_errors(self):

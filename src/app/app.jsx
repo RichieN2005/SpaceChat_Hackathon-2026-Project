@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router";
+import { Navigate, Route, Routes, useLocation } from "react-router";
 import LandingPage from "../pages/LandingPage";
 import LoginPage from "../pages/LoginPage";
 import SignupPage from "../pages/SignupPage";
@@ -11,6 +11,7 @@ import PostEditorPage from "../pages/PostEditorPage";
 import CommunitiesPage from "../pages/CommunitiesPage";
 import CommunityPage from "../pages/CommunityPage";
 import ProfilePage from "../pages/ProfilePage";
+import AstroBotChat from "../components/AstroBotChat";
 import AstroBotPage from "../pages/AstroBotPage";
 
 export default function App() {
@@ -19,7 +20,10 @@ export default function App() {
 
 function AppRoutes() {
   const returnFromSurface = useOrbitReturn();
+  const location = useLocation();
+  const activePostId = /^\/posts\/(\d+)\/?$/.exec(location.pathname)?.[1] || null;
   return (
+    <>
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/posts/:postId" element={<PostPage />} />
@@ -40,5 +44,7 @@ function AppRoutes() {
       </Route>
       <Route path="*" element={<DefaultRoute />} />
     </Routes>
+    <AstroBotChat postId={activePostId} onThreadReply={() => window.dispatchEvent(new Event("astrobot:reply"))} />
+    </>
   );
 }

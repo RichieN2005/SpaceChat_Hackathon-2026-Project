@@ -8,12 +8,12 @@ export default function VoteButtons({ post }) {
   const { status, refresh } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [score, setScore] = useState(post.score ?? 0);
+  const [counts, setCounts] = useState({ upvotes: post.upvotes ?? 0, downvotes: post.downvotes ?? 0 });
   const [vote, setVote] = useState(post.user_vote ?? 0);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const pendingRef = useRef(false);
-  useEffect(() => { setScore(post.score ?? 0); setVote(status === "authenticated" ? post.user_vote ?? 0 : 0); }, [post.id, post.score, post.user_vote, status]);
+  useEffect(() => { setCounts({ upvotes: post.upvotes ?? 0, downvotes: post.downvotes ?? 0 }); setVote(status === "authenticated" ? post.user_vote ?? 0 : 0); }, [post.id, post.upvotes, post.downvotes, post.user_vote, status]);
   async function cast(direction) {
     if (pendingRef.current || status === "loading") return;
     if (status !== "authenticated") {
@@ -23,7 +23,7 @@ export default function VoteButtons({ post }) {
     pendingRef.current = true; setPending(true); setError("");
     try {
       const result = await forumApi.vote(post.id, vote === direction ? 0 : direction);
-      setScore(result.score); setVote(result.user_vote);
+      setCounts({ upvotes: result.upvotes, downvotes: result.downvotes }); setVote(result.user_vote);
     } catch (failure) {
       setError(failure.message);
       if (failure.status === 401) { await refresh(); navigate("/login", { state: { returnTo: location.pathname + location.search } }); }
@@ -31,9 +31,9 @@ export default function VoteButtons({ post }) {
   }
   return <div>
     <div className="inline-flex min-h-10 items-center rounded-md border border-white/10 bg-white/4" aria-label="Post voting">
-      <button type="button" onClick={() => cast(1)} disabled={pending || status === "loading"} aria-label={vote === 1 ? "Remove upvote" : "Upvote post"} aria-pressed={vote === 1} className={`grid size-10 place-items-center rounded-l-md hover:bg-white/8 disabled:opacity-50 ${vote === 1 ? "text-signal" : "text-[#bcc3d2]"}`}><Icon name="up" size={18} /></button>
-      <span aria-live="polite" aria-label={`Score: ${score}`} className="min-w-6 text-center font-mono text-xs">{score}</span>
-      <button type="button" onClick={() => cast(-1)} disabled={pending || status === "loading"} aria-label={vote === -1 ? "Remove downvote" : "Downvote post"} aria-pressed={vote === -1} className={`grid size-10 place-items-center rounded-r-md hover:bg-white/8 disabled:opacity-50 ${vote === -1 ? "text-[#92bbfa]" : "text-[#bcc3d2]"}`}><Icon name="up" size={18} className="rotate-180" /></button>
+      <button type="button" onClick={() => cast(1)} disabled={pending || status === "loading"} aria-label={vote === 1 ? "Remove upvote" : "Upvote post"} aria-pressed={vote === 1} className={`flex min-w-14 items-center justify-center gap-1 min-h-10 place-items-center rounded-l-md hover:bg-white/8 disabled:opacity-50 ${vote === 1 ? "text-signal" : "text-[#bcc3d2]"}`}><Icon name="up" size={18} /><span>{counts.upvotes}</span></button>
+
+      <button type="button" onClick={() => cast(-1)} disabled={pending || status === "loading"} aria-label={vote === -1 ? "Remove downvote" : "Downvote post"} aria-pressed={vote === -1} className={`flex min-w-14 items-center justify-center gap-1 min-h-10 place-items-center rounded-r-md hover:bg-white/8 disabled:opacity-50 ${vote === -1 ? "text-[#92bbfa]" : "text-[#bcc3d2]"}`}><Icon name="up" size={18} className="rotate-180" /><span>{counts.downvotes}</span></button>
     </div>
     {error && <p role="alert" className="mt-2 max-w-sm text-xs text-[#ffbba8]">{error}</p>}
   </div>;

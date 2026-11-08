@@ -13,6 +13,7 @@ function CommunityContent({ communityId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [retry, setRetry] = useState(0);
+  const [sort, setSort] = useState("new");
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [postsError, setPostsError] = useState("");
@@ -37,12 +38,12 @@ function CommunityContent({ communityId }) {
   useEffect(() => {
     const controller = new AbortController();
     setPostsLoading(true); setPostsError("");
-    forumApi.posts({ community: communityId, limit: 6 }, controller.signal)
+    forumApi.posts({ community: communityId, sort, limit: 6 }, controller.signal)
       .then((items) => { if (!controller.signal.aborted) setPosts(items); })
       .catch((failure) => { if (!controller.signal.aborted) setPostsError(failure.message); })
       .finally(() => { if (!controller.signal.aborted) setPostsLoading(false); });
     return () => controller.abort();
-  }, [communityId, postsRetry, user?.id]);
+  }, [communityId, postsRetry, user?.id, sort]);
 
   useEffect(() => {
     document.title = community ? `s/${community.name} — SpaceChat` : "Community — SpaceChat";
@@ -83,12 +84,17 @@ function CommunityContent({ communityId }) {
         <p className="font-mono text-xs tracking-[1.4px] text-[#a0badb]">A SHARED ORBIT</p>
         <h1 ref={heading} tabIndex={-1} className="mt-4 max-w-3xl text-[clamp(30px,4vw,46px)] leading-tight font-medium tracking-[-1px] outline-none [overflow-wrap:anywhere]">s/{community.name}</h1>
         <p className="mt-5 max-w-2xl text-base leading-[1.85] whitespace-pre-wrap text-[#c0cbdc] [overflow-wrap:anywhere]">{community.description || "A little corner of the cosmos. Bring your curiosity, and make yourself at home."}</p>
-        <div className="mt-7 flex flex-wrap items-center gap-4"><button type="button" onClick={toggleMembership} disabled={pending || status === "loading"} className={community.is_member ? secondaryButton : primaryButton}>{pending ? "Updating orbit…" : community.is_member ? "Leave community" : "Join community"}{!pending && <Icon name="orbit" size={17} />}</button>{Number.isSafeInteger(community.member_count) && <span className="text-sm text-[#b0bfd5]">{community.member_count.toLocaleString()} {community.member_count === 1 ? "member" : "members"}</span>}{Number.isSafeInteger(community.post_count) && <span className="text-sm text-[#b0bfd5]">{community.post_count.toLocaleString()} {community.post_count === 1 ? "post" : "posts"}</span>}<span className="text-xs text-[#9cacc3]">Public community · Everyone can browse</span></div>
+        <div className="mt-7 flex flex-wrap items-center gap-4"><Link to={`/submit?community=${communityId}`} className={secondaryButton}>Create a post <Icon name="plus" size={17} /></Link><button type="button" onClick={toggleMembership} disabled={pending || status === "loading"} className={community.is_member ? secondaryButton : primaryButton}>{pending ? "Updating orbit…" : community.is_member ? "Leave community" : "Join community"}{!pending && <Icon name="orbit" size={17} />}</button>{Number.isSafeInteger(community.member_count) && <span className="text-sm text-[#b0bfd5]">{community.member_count.toLocaleString()} {community.member_count === 1 ? "member" : "members"}</span>}{Number.isSafeInteger(community.post_count) && <span className="text-sm text-[#b0bfd5]">{community.post_count.toLocaleString()} {community.post_count === 1 ? "post" : "posts"}</span>}<span className="text-xs text-[#9cacc3]">Public community · Everyone can browse</span></div>
         {membershipError && <p role="alert" className="mt-4 max-w-xl rounded-lg border border-signal/30 bg-[#27191b]/90 p-3 text-sm text-[#ffd0c0]">{membershipError}</p>}
         {notice && <p role="status" className="mt-4 text-sm text-[#c3d6ef]">{notice}</p>}
       </section>
       <section aria-labelledby="community-posts" className="mt-8">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-4"><h2 id="community-posts" className="text-2xl font-medium tracking-[-.6px]">Latest transmissions</h2><Link to={`/?community=${communityId}`} className={secondaryButton}>View all posts <Icon name="arrow" size={16} /></Link></div>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-4"><h2 id="community-posts" className="text-2xl font-medium tracking-[-.6px]">Latest transmissions</h2><Link to={`/?community=${communityId}&sort=${sort}`} className={secondaryButton}>View all posts <Icon name="arrow" size={16} /></Link></div>
+        <label className="mb-5 flex flex-wrap items-center gap-3 text-sm">Sort community posts
+          <select value={sort} onChange={(event) => setSort(event.target.value)} className="rounded-lg border border-white/15 bg-[#13151f] p-3">
+            <option value="new">Newest</option><option value="top">Top Voted Post</option><option value="discussed">Most Discussed</option>
+          </select>
+        </label>
         {postsLoading ? <LoadingCards /> : postsError ? <LoadError message={postsError} onRetry={() => setPostsRetry((value) => value + 1)} /> : !posts.length ? <div className="rounded-xl border border-dashed border-white/15 bg-[#11131b]/90 p-9 text-center"><Icon name="chat" size={32} className="mx-auto text-[#9db5d2]" /><h3 className="mt-4 text-lg font-medium">The first signal is still to come.</h3><p className="mt-3 text-sm text-[#aeb5c7]">This community doesn’t have any public posts yet.</p></div> : <div className="space-y-4">{posts.map((post) => <PostCard key={post.id} post={post} />)}</div>}
       </section>
     </>}

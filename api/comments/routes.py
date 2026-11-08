@@ -17,11 +17,11 @@ def list_comments(post_id):
             return error("Post not found", 404)
         cursor.execute(
             """
-            SELECT c.*, u.username AS author,
+            SELECT c.*, u.username AS author_username, u.is_bot,
                 (SELECT count(*) FROM public.comment_votes WHERE comment_id=c.id AND value=1) AS upvotes,
                 (SELECT count(*) FROM public.comment_votes WHERE comment_id=c.id AND value=-1) AS downvotes,
                 COALESCE((SELECT value FROM public.comment_votes WHERE comment_id=c.id AND user_id=%s), 0) AS user_vote
-            FROM public.comments c JOIN public.users u ON u.id=c.author_id
+            FROM public.comments c LEFT JOIN public.users u ON u.id=c.author_id
             WHERE c.post_id = %s
             ORDER BY upvotes DESC, c.created_at DESC, c.id DESC
             """,
@@ -133,3 +133,10 @@ def delete_comment(comment_id):
         return error("Comment is still referenced by another record", 409)
 
     return "", 204
+
+
+@comments.put("/comments/<int:comment_id>/vote")
+@login_required
+def vote_comment(comment_id):
+    from api.votes import record_vote
+    return record_vote("comments", comment_id)
