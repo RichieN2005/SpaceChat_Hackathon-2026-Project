@@ -1,32 +1,43 @@
 # SpaceChat — Hackathon 2026
 
-## Landing page
+## Phase 1: public forum
 
-The React frontend now includes a responsive SpaceChat landing page at `/` (also available at `/landing`) with an original red moon hero, three browsable community previews, a how-it-works section, and the project story. Run `npm run dev` and open `http://localhost:5173/`; `npm run build` creates the production frontend in `dist/`.
+SpaceChat now opens on a public forum backed by the Flask API and the existing PostgreSQL data. Visitors can browse without an account. The feed and post details use actual API records with no seeded fallback posts or replies; loading, empty, and failed-request states reflect the API response. Run `npm run dev` and open `http://localhost:5173/`; `npm run build` creates the production frontend in `dist/`.
 
-The landing page's **interactive preview** supports voting, composing sample posts, and replying. This is session-only demo content: posts and replies reset when the preview closes, and no forum or account API is called. Replace the `openUniverse` handler in `src/pages/LandingPage.jsx` with the real app entry point when the forum is ready. The generated moon asset and its generation prompt are documented in `public/images/README.md`.
+Routes:
+
+- `/` is the public feed, with title/body search, community filters, Newest and Most discussed sorting, and Load more pagination. Search, community, and sort are retained in the URL.
+- `/posts/:postId` shows a public post and its threaded comments. Post cards link directly to the post or its conversation.
+- `/landing` retains the red moon marketing page, lunar auth transitions, how-it-works section, and project story. `/about` is another route to that page. Its forum calls to action open the real feed.
+- `/home` redirects to `/` for older links.
+- `/login` and `/signup` retain their separate lunar surface pages. Authenticated visitors to these routes return to the feed or their intended post.
+
+This phase provides reading and account access. Voting, composing posts, and submitting replies are not exposed in the forum UI yet. The backend's existing write endpoints still require a session. The generated moon asset and its generation prompt are documented in `public/images/README.md`.
 
 Page structure:
 
-- `src/app/app.jsx` contains route definitions only.
-- `src/pages/LandingPage.jsx` contains the landing page and its interactions.
+- `src/app/app.jsx` defines the public feed, post detail, marketing, and auth routes.
+- `src/pages/HomePage.jsx` loads the public feed, communities, filters, and additional pages.
+- `src/pages/PostPage.jsx` loads a post and its comments, including independent retry states.
+- `src/components/forum/ForumLayout.jsx` and `PostCard.jsx` share the forum navigation, search, account links, and post cards.
+- `src/lib/forum.js` reads posts, comments, and communities from the API and formats their display data.
+- `src/pages/LandingPage.jsx` contains the marketing page and lunar transitions.
 - `src/pages/LoginPage.jsx` and `src/pages/SignupPage.jsx` connect the separate `/login` and `/signup` pages to the Flask auth API.
-- `src/pages/HomePage.jsx` is the protected, minimal Home page.
-- `src/components/auth/AuthProvider.jsx` restores the server session and shares authentication state; `AuthRoutes.jsx` enforces guest-only and signed-in routes.
+- `src/components/auth/AuthProvider.jsx` restores the server session and shares authentication state; `AuthRoutes.jsx` keeps the auth forms guest-only without gating public browsing.
 - `src/lib/auth.js` sends same-origin, cookie-authenticated API requests and translates API failures into form feedback.
+- `src/lib/authNavigation.js` preserves validated feed/post return destinations across login and signup.
 - `src/components/auth/AuthLayout.jsx` shares the enlarged lunar surface background and auth page layout.
-- `src/components/landing/PlanetTransition.jsx` animates into the lunar surface when opening an auth page and zooms back out when returning. The Back to orbit button, home logo, and browser Back return to the landing moon. Reduced-motion users navigate immediately.
+- `src/components/landing/PlanetTransition.jsx` animates into the lunar surface when opening auth from marketing and zooms back out when returning. Lunar visitors return to the marketing moon with the Back to orbit button, logo, or browser Back. Reduced-motion users navigate immediately.
 - `src/components/auth/useOrbitReturn.js` detects returns from auth pages, including browser Back, and restores focus to the corresponding planet marker after the zoom out.
 - `src/components/landing/visuals.jsx` contains the reusable logo, icons, starfield, moon scene, and small planets.
 - `src/components/landing/effects.css` contains only decorative texture backgrounds.
-- `src/app/ForumDialog.jsx` contains the session-only forum preview.
 - `src/index.css` configures Tailwind theme tokens, animations, and base styles. Layout, typography, colors, responsive behavior, and component states use Tailwind utility classes in JSX.
 
-The moon's Log in and Sign up markers and the navigation buttons open the corresponding auth page. Login accepts an email address or username. Signup registers the callsign as `username`, then redirects to login so the user can sign in. Registration does not create a session. Successful login redirects to `/home`; authenticated visitors to `/`, `/landing`, `/about`, `/login`, or `/signup` also redirect to Home. Guests visiting `/home` redirect to login. Home includes logout.
+The moon's Log in and Sign up markers and the forum's account links open the corresponding auth page. Login accepts an email address or username. Signup registers the callsign as `username`, then redirects to login with account-created feedback; registration does not create a session. After manual login, the user returns to their intended feed/post URL, or `/` by default. That destination survives switching between login and signup. The auth Back button returns forum visitors to their conversation and lunar visitors to the marketing moon. The forum header includes logout for signed-in users.
 
 Authentication uses Flask's signed session cookie, restored through `GET /api/auth/me` on page load. Credentials and authentication flags are not stored in local/session storage. Forms show validation, loading states, and API errors. `POST /api/auth/logout` clears the server session. The Vercel rewrite forwards nested `/api/*` routes to Render.
 
-For local authentication, run both the frontend and Flask API. Vite defaults to the Flask server at `http://127.0.0.1:5000`. If port 5000 is occupied (common on macOS), use two terminals:
+For local forum data and authentication, run both the frontend and Flask API. Vite defaults to the Flask server at `http://127.0.0.1:5000`. If port 5000 is occupied (common on macOS), use two terminals:
 
 ```bash
 .venv/bin/python -m flask --app app run --port 5001
@@ -36,15 +47,15 @@ For local authentication, run both the frontend and Flask API. Vite defaults to 
 API_PROXY_TARGET=http://127.0.0.1:5001 npm run dev
 ```
 
-The Flask process needs the existing `SECRET_KEY` and `DATABASE_URL` configuration. If the API cannot be reached during the initial session check, the landing, login, and signup pages remain available. Home stays protected behind a session retry screen, and failed login/signup requests show errors on their forms.
+The Flask process needs the existing `SECRET_KEY` and `DATABASE_URL` configuration. A failed session check does not block the public feed, post details, marketing page, or auth forms. Forum requests show their own loading, empty, and error states; failed login/signup requests show errors on their forms. The Gemini client is initialized lazily when AI chat is requested, so a missing AI API key does not block startup or public forum/auth endpoints.
 
-Run `npm run test:auth` for API-client contract tests and `.venv/bin/python -m unittest discover -s tests -v` for backend auth/session tests. These checks use isolated mocks and never access the project database.
+No database migration is needed for Phase 1: a read-only audit of the live schema confirmed the required users, subreddits, posts, and comments tables and columns already exist. Deploy the frontend and Flask backend changes together, because the feed relies on the backend's search, sorting, pagination, author/community names, and comment counts. The existing Vercel configuration forwards `/api/*` requests to the Render backend and serves the React app for direct frontend-route visits.
 
-The onboarding notes below describe the earlier scaffold and planned backend architecture; the landing page above supersedes references to the sample Home and About screens.
+Run `npm test` for frontend client/navigation tests, `npm run test:auth` for the auth subset, and `.venv/bin/python -m unittest discover -s tests -v` for backend tests. These checks use isolated mocks and never access the project database.
 
-SpaceChat is a hackathon web application **in early development**. This repository currently contains a React frontend scaffold and the dependencies/configuration for a Python Flask API backed by TigerData (PostgreSQL). The application's product features and database integration have **not** been implemented in this snapshot.
+## Historical scaffold notes
 
-This README is intended to help contributors understand the codebase, configure their machines, and avoid common setup problems. Sections marked **Planned / not yet implemented** describe intended architecture, not working functionality.
+The remaining sections document the earlier scaffold and planned architecture. Their references to sample Home/About pages, empty source files, missing database integration, and unconfigured tests are historical; the Phase 1 implementation and commands above describe the current app.
 
 ## Technology stack
 

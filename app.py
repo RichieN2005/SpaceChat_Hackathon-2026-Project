@@ -1,4 +1,5 @@
 import os
+from functools import lru_cache
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from google import genai
@@ -20,8 +21,10 @@ app = Flask(__name__)
 # Configure Flask's secret key.
 app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
 
-# --- Gemini AI Setup ---
-client = genai.Client()
+# Initialize AI only when it is used, so its configuration cannot block other routes.
+@lru_cache(maxsize=1)
+def get_ai_client():
+    return genai.Client()
 
 def ask_space_bot(user_message: str) -> str:
     """
@@ -36,7 +39,7 @@ def ask_space_bot(user_message: str) -> str:
     )
 
     try:
-        response = client.models.generate_content(
+        response = get_ai_client().models.generate_content(
             model="gemini-2.5-flash",
             contents=user_message,
             config=types.GenerateContentConfig(

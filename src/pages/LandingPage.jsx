@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import ForumDialog from "../app/ForumDialog";
 import AuthButtons from "../components/landing/AuthButtons";
 import PlanetTransition from "../components/landing/PlanetTransition";
 import { captureMoonGeometry } from "../components/landing/orbitGeometry";
@@ -112,7 +111,6 @@ export default function LandingPage({ returnFromSurface = null }) {
   const moonImageRef = useRef(null);
   const departingRef = useRef(false);
   const [activeCommunity, setActiveCommunity] = useState(0);
-  const [selectedCommunity, setSelectedCommunity] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [departure, setDeparture] = useState(null);
   const [votes, setVotes] = useState({});
@@ -134,10 +132,9 @@ export default function LandingPage({ returnFromSurface = null }) {
     return () => window.removeEventListener("keydown", handleKey);
   }, [menuOpen]);
 
-  // Replace this handler with navigation when the real forum is ready.
-  function openUniverse(item = community) {
+  function openUniverse() {
     setMenuOpen(false);
-    setSelectedCommunity(item);
+    navigate("/");
   }
 
   function handleAuthAction(action) {
@@ -477,9 +474,6 @@ export default function LandingPage({ returnFromSurface = null }) {
 
       {departure && <PlanetTransition departure={departure} onComplete={finishAuthTransition} />}
 
-      {selectedCommunity && (
-        <ForumDialog community={selectedCommunity} onClose={() => setSelectedCommunity(null)} />
-      )}
     </>
   );
 }

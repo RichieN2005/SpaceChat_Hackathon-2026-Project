@@ -4,6 +4,7 @@ import AuthField from "../components/auth/AuthField";
 import AuthLayout from "../components/auth/AuthLayout";
 import { useAuth } from "../components/auth/AuthProvider";
 import { Icon } from "../components/landing/visuals";
+import { authNavigationState } from "../lib/authNavigation";
 
 export default function LoginPage() {
   const location = useLocation();
@@ -64,7 +65,7 @@ export default function LoginPage() {
         </button>
         {serverError && <p ref={errorSummary} tabIndex={-1} role="alert" className="rounded border border-[#bb6c54]/70 bg-[#332016]/65 p-3 text-sm leading-[1.8] text-[#ffd3c6] focus:outline-none focus:ring-2 focus:ring-signal/60">{serverError}</p>}
       </form>
-      <p className="mt-7 border-t border-[#604739]/50 pt-5 text-center text-sm leading-[1.8] text-[#baaaa1]">New to this part of the universe? <Link className="whitespace-nowrap text-[#ff9b80] underline-offset-4 hover:underline" to="/signup" replace state={location.state?.fromOrbit ? { fromOrbit: true } : null}>Sign up <span aria-hidden="true">↗</span></Link></p>
+      <p className="mt-7 border-t border-[#604739]/50 pt-5 text-center text-sm leading-[1.8] text-[#baaaa1]">New to this part of the universe? <Link className="whitespace-nowrap text-[#ff9b80] underline-offset-4 hover:underline" to="/signup" replace state={authNavigationState(location.state)}>Sign up <span aria-hidden="true">↗</span></Link></p>
     </AuthLayout>
   );
 }

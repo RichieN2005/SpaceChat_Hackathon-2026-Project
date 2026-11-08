@@ -4,6 +4,7 @@ import AuthField from "../components/auth/AuthField";
 import AuthLayout from "../components/auth/AuthLayout";
 import { useAuth } from "../components/auth/AuthProvider";
 import { Icon } from "../components/landing/visuals";
+import { authNavigationState } from "../lib/authNavigation";
 
 export default function SignupPage() {
   const location = useLocation();
@@ -52,7 +53,7 @@ export default function SignupPage() {
       await signup({ username: callsign, email, password });
       navigate("/login", {
         replace: true,
-        state: { signupComplete: true, ...(location.state?.fromOrbit ? { fromOrbit: true } : {}) },
+        state: { ...authNavigationState(location.state), signupComplete: true },
       });
     } catch (error) {
       form.elements.namedItem("password").value = "";
@@ -77,7 +78,7 @@ export default function SignupPage() {
         </button>
         {serverError && <p ref={errorSummary} tabIndex={-1} role="alert" className="rounded border border-[#bb6c54]/70 bg-[#332016]/65 p-3 text-sm leading-[1.8] text-[#ffd3c6] focus:outline-none focus:ring-2 focus:ring-signal/60">{serverError}</p>}
       </form>
-      <p className="mt-6 border-t border-[#604739]/50 pt-5 text-center text-sm leading-[1.8] text-[#baaaa1]">Already found your orbit? <Link className="whitespace-nowrap text-[#ff9b80] underline-offset-4 hover:underline" to="/login" replace state={location.state?.fromOrbit ? { fromOrbit: true } : null}>Log in <span aria-hidden="true">↗</span></Link></p>
+      <p className="mt-6 border-t border-[#604739]/50 pt-5 text-center text-sm leading-[1.8] text-[#baaaa1]">Already found your orbit? <Link className="whitespace-nowrap text-[#ff9b80] underline-offset-4 hover:underline" to="/login" replace state={authNavigationState(location.state)}>Log in <span aria-hidden="true">↗</span></Link></p>
     </AuthLayout>
   );
 }

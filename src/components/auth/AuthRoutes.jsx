@@ -1,5 +1,6 @@
-import { Navigate, Outlet } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router";
 import { useAuth } from "./AuthProvider";
+import { safeReturnTo } from "../../lib/authNavigation";
 
 function SessionCheck() {
   const { status, error, refresh } = useAuth();
@@ -18,19 +19,19 @@ function SessionCheck() {
 
 export function GuestOnly() {
   const { status } = useAuth();
-  // A session-service outage must not hide the public landing or auth forms.
+  const location = useLocation();
+  // A session-service outage must not hide the auth forms.
   if (status === "loading") return <SessionCheck />;
-  return status === "authenticated" ? <Navigate to="/home" replace /> : <Outlet />;
+  return status === "authenticated" ? <Navigate to={safeReturnTo(location.state?.returnTo)} replace /> : <Outlet />;
 }
 
 export function RequireAuth() {
   const { status } = useAuth();
+  const location = useLocation();
   if (status === "loading" || status === "error") return <SessionCheck />;
-  return status === "authenticated" ? <Outlet /> : <Navigate to="/login" replace />;
+  return status === "authenticated" ? <Outlet /> : <Navigate to="/login" replace state={{ returnTo: safeReturnTo(location.pathname + location.search + location.hash) }} />;
 }
 
 export function DefaultRoute() {
-  const { status } = useAuth();
-  if (status === "loading") return <SessionCheck />;
-  return <Navigate to={status === "authenticated" ? "/home" : "/"} replace />;
+  return <Navigate to="/" replace />;
 }

@@ -17,10 +17,12 @@ def list_comments(post_id):
             return error("Post not found", 404)
         cursor.execute(
             """
-            SELECT id, post_id, author_id, parent_comment_id, body, created_at
-            FROM public.comments
-            WHERE post_id = %s
-            ORDER BY created_at, id
+            SELECT c.id, c.post_id, c.author_id, c.parent_comment_id, c.body, c.created_at,
+                   u.username AS author_username
+            FROM public.comments AS c
+            LEFT JOIN public.users AS u ON u.id = c.author_id
+            WHERE c.post_id = %s
+            ORDER BY c.created_at, c.id
             """,
             (post_id,),
         )
