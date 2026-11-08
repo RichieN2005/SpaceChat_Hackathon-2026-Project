@@ -5,10 +5,13 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 from google.genai import errors
+from api.aiService.ai_service import get_ai_client
 
 
 class AstroBotRoutesTest(unittest.TestCase):
     def setUp(self):
+        get_ai_client.cache_clear()
+        self.addCleanup(get_ai_client.cache_clear)
         name = "spacechat_ai_test"
         spec = importlib.util.spec_from_file_location(name, Path(__file__).resolve().parents[1] / "app.py")
         self.module = importlib.util.module_from_spec(spec)
@@ -29,6 +32,12 @@ class AstroBotRoutesTest(unittest.TestCase):
     def login(self):
         with self.client.session_transaction() as session:
             session["user_id"] = 7
+
+    def test_ai_blueprint_is_registered_once_without_public_alias(self):
+        ai_rules = [rule for rule in self.module.app.url_map.iter_rules()
+                    if rule.rule == "/api/ai/chat"]
+        self.assertEqual(len(ai_rules), 1)
+        self.assertEqual(self.client.post("/api/chat", json={"message": "hello"}).status_code, 404)
 
     def test_ai_requires_login_without_calling_provider(self):
         self.assertEqual(self.client.post("/api/ai/chat", json={"message": "Hello"}).status_code, 401)

@@ -353,3 +353,20 @@ Check the server-side connection URL, network access rules, database credentials
 ---
 
 **Documentation scope:** This README describes the code and configuration present in the uploaded project snapshot and clearly identifies proposed future behavior. Update it as features and deployment steps become real.
+
+### AstroBot module organization
+
+`app.py` registers the `ai_bp` Blueprint from `api/aiService/routes.py`.
+The Blueprint keeps `POST /api/ai/chat` authenticated via the shared
+`login_required` decorator, validates JSON and a 2,000-character message
+limit, and preserves the frontend's `{ "sender": "AstroBot", "response": "..." }`
+response contract. `api/aiService/ai_service.py` handles Gemini generation,
+uses the existing `gemini-2.5-flash` default (or `GEMINI_MODEL` if configured),
+and maps provider failures to safe public error codes. Missing Gemini credentials
+must not prevent Render health routes or other API routes from starting.
+
+Do not register the experimental `api/chat.py` from the older AI work copy:
+it exposes `/api/chat` without an authentication check. The feature copy's
+`.env`, `.git`, `.venv`, and local caches were intentionally excluded from this
+merge; set secrets only through Render's environment configuration or a local
+ignored `.env`.
