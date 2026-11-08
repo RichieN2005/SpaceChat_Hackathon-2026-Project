@@ -1,0 +1,43 @@
+
+name: SpaceChat Backend Keep Alive
+
+# Defines when GitHub should execute this workflow.
+on:
+  # Run approximately every five minutes.
+  schedule:
+    - cron: "3-59/5 * * * *"
+
+  # Allow developers to run it manually.
+  workflow_dispatch:
+
+# Limit the workflow's GitHub permissions.
+permissions:
+  contents: read
+
+jobs:
+  keep-alive:
+    name: Ping Render Backend
+
+    # GitHub provides a temporary Ubuntu runner.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check Flask Health Endpoint
+        env:
+          HEALTH_URL: ${{ vars.RENDER_HEALTH_URL }}
+
+        run: |
+          # Ensure a URL has been configured.
+          if [ -z "$HEALTH_URL" ]; then
+            echo "Missing RENDER_HEALTH_URL variable"
+            exit 1
+          fi
+
+          # Send a GET request to the Flask backend.
+          # --fail makes HTTP errors fail this step.
+          # --max-time prevents hanging indefinitely.
+          curl --fail --silent --show-error \
+               --max-time 120 \
+               "$HEALTH_URL"
+
+          echo "SpaceChat health check completed"
