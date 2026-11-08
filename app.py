@@ -1,7 +1,14 @@
+import os
+
 from flask import Flask, jsonify
 from database import get_db_connection
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file
 
 app = Flask(__name__)
+
+app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
 
 @app.route("/api/health", methods=["GET"])
 def health_check():
