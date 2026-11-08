@@ -22,7 +22,7 @@ Page structure:
 - `src/app/ForumDialog.jsx` contains the session-only forum preview.
 - `src/index.css` configures Tailwind theme tokens, animations, and base styles. Layout, typography, colors, responsive behavior, and component states use Tailwind utility classes in JSX.
 
-The moon's Log in and Sign up markers and the navigation buttons open the corresponding auth page. Login accepts an email address or username. Signup registers the callsign as `username`, then logs in automatically. Successful authentication redirects to `/home`; authenticated visitors to `/`, `/landing`, `/about`, `/login`, or `/signup` also redirect to Home. Guests visiting `/home` redirect to login. Home includes logout.
+The moon's Log in and Sign up markers and the navigation buttons open the corresponding auth page. Login accepts an email address or username. Signup registers the callsign as `username`, then redirects to login so the user can sign in. Registration does not create a session. Successful login redirects to `/home`; authenticated visitors to `/`, `/landing`, `/about`, `/login`, or `/signup` also redirect to Home. Guests visiting `/home` redirect to login. Home includes logout.
 
 Authentication uses Flask's signed session cookie, restored through `GET /api/auth/me` on page load. Credentials and authentication flags are not stored in local/session storage. Forms show validation, loading states, and API errors. `POST /api/auth/logout` clears the server session. The Vercel rewrite forwards nested `/api/*` routes to Render.
 

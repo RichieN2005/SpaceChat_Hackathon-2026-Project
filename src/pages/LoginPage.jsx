@@ -55,6 +55,7 @@ export default function LoginPage() {
 
   return (
     <AuthLayout mode="login" title="Welcome back," accent="space traveler." description="A familiar frequency in a very big universe. Come back to your people, your worlds, and the conversations you left in orbit.">
+      {location.state?.signupComplete && <p role="status" className="mt-6 rounded border border-signal/40 bg-signal/10 p-3 text-sm leading-[1.8] text-[#ffcfb9]">Account created. Log in with your new username or email and password.</p>}
       <form className="mt-7 space-y-5" onSubmit={submit} aria-busy={isSubmitting} noValidate>
         <AuthField label="Email or username" name="identifier" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="you@yourplanet.com or callsign" error={errors.identifier} onChange={() => clearError("identifier")} disabled={isSubmitting} />
         <AuthField label="Password" name="password" type="password" autoComplete="current-password" placeholder="Your secret transmission" error={errors.password} onChange={() => clearError("password")} disabled={isSubmitting} />

@@ -53,12 +53,7 @@ export const authApi = {
     return requireUser(await request("login", { method: "POST", data: { identifier, password } }));
   },
   async signup({ username, email, password }) {
-    await request("register", { method: "POST", data: { username, email, password } });
-    try {
-      return await authApi.login({ identifier: email, password });
-    } catch (error) {
-      throw new AuthApiError("Your account was created, but we couldn’t sign you in. Please log in.", error.status);
-    }
+    return request("register", { method: "POST", data: { username, email, password } });
   },
   async logout() {
     await request("logout", { method: "POST", data: {} });

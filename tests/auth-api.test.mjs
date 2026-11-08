@@ -25,15 +25,15 @@ test("login sends the backend's identifier field and returns its public user", a
   assert.deepEqual(JSON.parse(options.body), { identifier: "test_traveler", password: "test-password" });
 });
 
-test("signup registers first, then establishes a session with login", async () => {
-  const fetch = mock.method(globalThis, "fetch", async (url) => url.endsWith("register") ? json(user, 201) : json({ user }));
+test("signup only registers the account and returns the backend's bare public user", async () => {
+  const fetch = mock.method(globalThis, "fetch", async () => json(user, 201));
   const fields = { username: "test_traveler", email: "traveler@example.com", password: "test-password" };
   assert.deepEqual(await authApi.signup(fields), user);
-  assert.equal(fetch.mock.callCount(), 2);
-  assert.equal(fetch.mock.calls[0].arguments[0], "/api/auth/register");
-  assert.deepEqual(JSON.parse(fetch.mock.calls[0].arguments[1].body), fields);
-  assert.equal(fetch.mock.calls[1].arguments[0], "/api/auth/login");
-  assert.deepEqual(JSON.parse(fetch.mock.calls[1].arguments[1].body), { identifier: fields.email, password: fields.password });
+  assert.equal(fetch.mock.callCount(), 1);
+  const [url, options] = fetch.mock.calls[0].arguments;
+  assert.equal(url, "/api/auth/register");
+  assert.equal(options.method, "POST");
+  assert.deepEqual(JSON.parse(options.body), fields);
 });
 
 test("duplicate signup displays the backend error and never attempts login", async () => {
@@ -42,9 +42,11 @@ test("duplicate signup displays the backend error and never attempts login", asy
   assert.equal(fetch.mock.callCount(), 1);
 });
 
-test("a registered account with a failed auto-login gets actionable feedback", async () => {
-  mock.method(globalThis, "fetch", async (url) => url.endsWith("register") ? json(user, 201) : json({ error: "Invalid credentials" }, 401));
-  await assert.rejects(authApi.signup({ username: "test_traveler", email: "traveler@example.com", password: "test-password" }), /account was created.*Please log in/);
+test("registration validation errors retain the backend feedback without attempting login", async () => {
+  const fetch = mock.method(globalThis, "fetch", async () => json({ error: "Password must be at least 8 characters" }, 400));
+  await assert.rejects(authApi.signup({ username: "test_traveler", email: "traveler@example.com", password: "short" }), (error) => error instanceof AuthApiError && error.status === 400 && error.message === "Password must be at least 8 characters");
+  assert.equal(fetch.mock.callCount(), 1);
+  assert.equal(fetch.mock.calls[0].arguments[0], "/api/auth/register");
 });
 
 test("an expired or anonymous session preserves the 401 status for the guard", async () => {

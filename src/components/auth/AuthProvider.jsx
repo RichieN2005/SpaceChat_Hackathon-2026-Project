@@ -30,8 +30,8 @@ export function AuthProvider({ children }) {
     };
   }, [refresh]);
 
-  async function authenticate(action, fields) {
-    const user = await authApi[action](fields);
+  async function login(fields) {
+    const user = await authApi.login(fields);
     requestId.current += 1;
     setSession({ status: "authenticated", user, error: "" });
     return user;
@@ -44,7 +44,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ ...session, refresh, logout, login: (fields) => authenticate("login", fields), signup: (fields) => authenticate("signup", fields) }}>
+    <AuthContext.Provider value={{ ...session, refresh, logout, login, signup: authApi.signup }}>
       {children}
     </AuthContext.Provider>
   );

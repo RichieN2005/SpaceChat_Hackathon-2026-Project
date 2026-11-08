@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import AuthField from "../components/auth/AuthField";
 import AuthLayout from "../components/auth/AuthLayout";
 import { useAuth } from "../components/auth/AuthProvider";
@@ -7,6 +7,7 @@ import { Icon } from "../components/landing/visuals";
 
 export default function SignupPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { signup } = useAuth();
   const pending = useRef(false);
   const errorSummary = useRef(null);
@@ -49,6 +50,10 @@ export default function SignupPage() {
 
     try {
       await signup({ username: callsign, email, password });
+      navigate("/login", {
+        replace: true,
+        state: { signupComplete: true, ...(location.state?.fromOrbit ? { fromOrbit: true } : {}) },
+      });
     } catch (error) {
       form.elements.namedItem("password").value = "";
       form.elements.namedItem("confirmPassword").value = "";
