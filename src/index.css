@@ -1,1 +1,44 @@
 @import "tailwindcss";
+
+@theme {
+  --color-space: #09090b;
+  --color-signal: #fa7159;
+  --color-starlight: #f3f1ed;
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --animate-moon-appear: moon-appear 1.5s ease-out both;
+  --animate-forum-appear: forum-appear .2s ease;
+
+  @keyframes moon-appear {
+    from { opacity: 0; transform: translateY(15px) rotate(-3deg); }
+    to { opacity: 1; transform: translateY(0) rotate(0); }
+  }
+
+  @keyframes forum-appear {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}
+
+@layer base {
+  html {
+    @apply scroll-smooth scroll-pt-[35px] motion-reduce:scroll-auto;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply min-w-80 bg-space font-sans text-starlight antialiased;
+  }
+
+  button { @apply cursor-pointer; }
+  button, a { @apply touch-manipulation; }
+
+  :where(button, a, input, textarea, [tabindex]):focus-visible {
+    @apply outline-2 outline-offset-5 outline-signal;
+  }
+
+  ::selection { @apply bg-signal text-space; }
+}
