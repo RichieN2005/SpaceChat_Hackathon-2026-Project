@@ -33,7 +33,22 @@ def request_too_large(_error):
 def get_ai_client():
     return genai.Client()
 
-def ask_space_bot(user_message: str) -> str | None:
+
+class AstroBotError(Exception):
+    """A fixed public error category, separate from provider diagnostics."""
+
+    def __init__(self, code):
+        messages = {
+            "ai_usage_limit": "AstroBot has reached its AI usage limit. Please try again later.",
+            "ai_configuration": "AstroBot’s AI service is unavailable. Please try again later.",
+            "ai_unavailable": "AstroBot is temporarily unavailable. Please try again later.",
+        }
+        super().__init__(messages[code])
+        self.code = code
+        self.status = 429 if code == "ai_usage_limit" else 503
+
+
+def ask_space_bot(user_message: str) -> str:
     """
     Sends a prompt to Gemini with system instructions to enforce a space theme.
     """
@@ -55,23 +70,29 @@ def ask_space_bot(user_message: str) -> str | None:
             ),
         )
         answer = response.text
-        if isinstance(answer, str) and answer.strip():
-            return answer
-        app.logger.warning("AstroBot Gemini response contained no usable text")
-        return None
     except errors.APIError as exc:
-        categories = {400: "invalid_request_or_key", 401: "authentication", 403: "permission", 404: "model_or_resource", 429: "quota_or_rate_limit", 500: "provider_error", 503: "provider_unavailable"}
         # Provider exception strings can contain request details. Log only the
         # status and a fixed category; never keys, prompts, or raw exceptions.
         code = exc.code if type(exc.code) is int else 0
-        app.logger.warning("AstroBot Gemini request failed: code=%s category=%s", code, categories.get(code, "provider_error"))
-        return None
+        if code == 429:
+            category = "ai_usage_limit"
+        elif code in (400, 401, 403, 404):
+            category = "ai_configuration"
+        else:
+            category = "ai_unavailable"
+        app.logger.warning("AstroBot Gemini request failed: code=%s category=%s", code, category)
+        raise AstroBotError(category) from None
     except ValueError:
-        app.logger.error("AstroBot configuration/request invalid: check Render GEMINI_API_KEY or GOOGLE_API_KEY and Gemini API settings")
-        return None
-    except Exception as exc:
-        app.logger.error("AstroBot request failed: type=%s", type(exc).__name__)
-        return None
+        app.logger.error("AstroBot Gemini request failed: code=0 category=ai_configuration")
+        raise AstroBotError("ai_configuration") from None
+    except Exception:
+        app.logger.error("AstroBot Gemini request failed: code=0 category=ai_unavailable")
+        raise AstroBotError("ai_unavailable") from None
+
+    if isinstance(answer, str) and answer.strip():
+        return answer
+    app.logger.warning("AstroBot Gemini request failed: code=0 category=ai_unavailable")
+    raise AstroBotError("ai_unavailable") from None
 
 @app.route('/api/ai/chat', methods=['POST'])
 @login_required
@@ -86,9 +107,10 @@ def chat_with_spacebot():
     if len(user_message) > 2000:
         return jsonify(error="Message must be at most 2000 characters"), 400
 
-    bot_response = ask_space_bot(user_message)
-    if bot_response is None:
-        return jsonify(error="AstroBot is temporarily unavailable. Please try again later."), 503
+    try:
+        bot_response = ask_space_bot(user_message)
+    except AstroBotError as exc:
+        return jsonify(error=str(exc), code=exc.code), exc.status
     
     return jsonify({
         "sender": "AstroBot",

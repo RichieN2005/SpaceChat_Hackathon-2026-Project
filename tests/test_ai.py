@@ -56,7 +56,8 @@ class AstroBotRoutesTest(unittest.TestCase):
         response = self.client.post("/api/ai/chat", json={"message": "Hello"})
         self.assertEqual(response.status_code, 503)
         self.assertNotIn("private-provider-details", response.get_data(as_text=True))
-        self.assertEqual(set(response.get_json()), {"error"})
+        self.assertEqual(set(response.get_json()), {"error", "code"})
+        self.assertEqual(response.get_json()["code"], "ai_unavailable")
 
     def test_oversized_requests_return_json_413(self):
         self.login()
@@ -70,11 +71,15 @@ class AstroBotRoutesTest(unittest.TestCase):
         self.provider.models.generate_content.side_effect = errors.ClientError(429, {"error": {"status": "RESOURCE_EXHAUSTED", "message": "private-provider-details-and-key"}})
         with self.assertLogs(self.module.app.logger, level="WARNING") as captured:
             response = self.client.post("/api/ai/chat", json={"message": "Hello"})
-        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.get_json()["code"], "ai_usage_limit")
         logs = " ".join(captured.output)
         self.assertIn("code=429", logs)
-        self.assertIn("quota_or_rate_limit", logs)
+        self.assertIn("ai_usage_limit", logs)
         self.assertNotIn("private-provider-details-and-key", logs)
+        self.assertNotIn("private-provider-details-and-key", response.get_data(as_text=True))
+        self.provider.models.generate_content.assert_called_once()
+        self.constructor.assert_called_once_with()
 
     def test_configuration_failures_have_safe_server_diagnostics(self):
         self.login()
@@ -82,8 +87,45 @@ class AstroBotRoutesTest(unittest.TestCase):
         with self.assertLogs(self.module.app.logger, level="ERROR") as captured:
             response = self.client.post("/api/ai/chat", json={"message": "Hello"})
         self.assertEqual(response.status_code, 503)
-        self.assertIn("GEMINI_API_KEY", " ".join(captured.output))
+        self.assertEqual(response.get_json()["code"], "ai_configuration")
+        self.assertIn("category=ai_configuration", " ".join(captured.output))
         self.assertNotIn("private-config-value", " ".join(captured.output))
+
+    def test_upstream_credentials_and_model_errors_do_not_expire_user_session(self):
+        self.login()
+        for status in (401, 403, 404):
+            with self.subTest(status=status):
+                self.provider.models.generate_content.side_effect = errors.ClientError(status, {"error": {"message": "private-provider-detail"}})
+                response = self.client.post("/api/ai/chat", json={"message": "Hello"})
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.get_json()["code"], "ai_configuration")
+                self.assertNotIn("private-provider-detail", response.get_data(as_text=True))
+                with self.client.session_transaction() as session:
+                    self.assertEqual(session["user_id"], 7)
+
+    def test_transient_errors_use_unavailable_category_without_outer_retries(self):
+        self.login()
+        failures = (
+            errors.ServerError(500, {"error": {"message": "private-provider-detail"}}),
+            errors.ServerError(503, {"error": {"message": "private-provider-detail"}}),
+            ConnectionError("private-network-detail"),
+        )
+        for failure in failures:
+            with self.subTest(failure_type=type(failure).__name__):
+                self.provider.models.generate_content.reset_mock()
+                self.provider.models.generate_content.side_effect = failure
+                response = self.client.post("/api/ai/chat", json={"message": "private-user-prompt"})
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.get_json()["code"], "ai_unavailable")
+                self.provider.models.generate_content.assert_called_once()
+                self.assertNotIn("private-", response.get_data(as_text=True))
+
+    def test_empty_provider_text_is_a_safe_unavailable_response(self):
+        self.login()
+        self.provider.models.generate_content.return_value = SimpleNamespace(text="   ")
+        response = self.client.post("/api/ai/chat", json={"message": "Hello"})
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.get_json()["code"], "ai_unavailable")
 
     def test_model_can_be_selected_without_changing_code(self):
         self.login()
